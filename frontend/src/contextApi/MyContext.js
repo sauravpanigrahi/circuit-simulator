@@ -254,22 +254,27 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
       
       const data = await response.json();
       console.log('Simulation results:', data);
+      
+      if (data.status === 'error') {
+        throw new Error(data.error || 'Unknown error occurred during simulation');
+      }
+      
       setSimData(data);
       alert('Simulation completed successfully!');
       
     } catch (error) {
       console.error('=== COMPLETE ERROR DETAILS ===');
-      // console.error('Error:', error);
-      // console.error('Error name:', error.name);
-      // console.error('Error message:', error.message);
-      // console.error('Error stack:', error.stack);
-      // console.error('=============================');
-      // alert(`Simulation failed: ${error.message}`);
+      console.error('Error:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('=============================');
+      alert(`Simulation failed: ${error.message}`);
     }
   }
 
