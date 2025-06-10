@@ -1,0 +1,11 @@
+Flask==3.0.3
+Flask_Cors==4.0.0
+lcapy==1.7.0
+matplotlib==3.8.1
+numpy==1.26.4
+python-dotenv==1.0.1
+sympy==1.12
+Gunicorn
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.4.2
