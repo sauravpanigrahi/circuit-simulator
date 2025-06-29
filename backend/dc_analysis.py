@@ -26,7 +26,7 @@ def preprocess_netlist(netlist_string):
             if tokens[0].startswith('W'):
                 name, n1, n2 = tokens[0], tokens[1], tokens[2]
                 # Use reasonable resistance for wires
-                processed.append(f'R{name} {n1} {n2} 0.001')
+                processed.append(f'R{name} {n1} {n2} 0.0000000001')
                 logger.info(f"Converted wire {name} to resistor R{name}")
             elif tokens[0].startswith('D'):
                 # For DC analysis, replace diode with a resistor
@@ -271,6 +271,7 @@ def run_dc_analysis(netlist_filename='netlist.txt'):
         # Perform DC analysis
         cct_dc = cct.dc()
         logger.info("DC analysis completed")
+        logger.info(f"DC analysis results: {cct_dc}")
         
     except Exception as e:
         logger.error(f"Error creating circuit: {e}")

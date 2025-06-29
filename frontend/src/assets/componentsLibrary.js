@@ -15,242 +15,536 @@ export const components = {
             .on("click", () => setSelectedLine(lineId))
         )
     },
-    R:{
+    R: {
         id: 2,
         name: 'R',
         component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
-            // Calculate transform string for text placement
-            const isVertical = x1 === x2;
-            const rotation = isVertical ? Math.sign(y2 - y1) : (x2 > x1 ? 0 : -2);
-            const transformString = `rotate(${rotation * 90} ${x1} ${y1}) translate(${x1 + 25}, ${y1 - 10})`;
-
-            const resistorgroup = svg.append("g")
-                .attr("id", lineId);
-
-            // Minus sign (at source terminal)
-            resistorgroup.append("text")
-                .attr("x", -20)  // Position relative to the circle center
-                .attr("y", 5)
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .attr("font-family", "Arial")
-                .attr("fill", "black")
-                .attr("transform", transformString)
-                .text("-");
-
-            // Plus sign (at destination terminal)
-            resistorgroup.append("text")
-                .attr("x", 20)   // Position relative to the circle center
-                .attr("y", 5)
-                .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
-                .attr("font-family", "Arial")
-                .attr("fill", "black")
-                .attr("transform", transformString)
-                .text("+");
-
-            resistorgroup.append("path")
+            // Calculate midpoint and dimensions
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            
+            // Calculate the angle of the line
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            
+            // Calculate the total line length
+            const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const halfLength = lineLength / 2;
+            
+            // Resistor zigzag dimensions
+            const zigzagWidth = 30; // Total width of the zigzag pattern
+            const zigzagHeight = 8; // Height of each peak/valley
+            const numPeaks = 6; // Number of peaks in the zigzag
+            const peakWidth = zigzagWidth / numPeaks;
+            
+            // Create group for resistor
+            const resistorGroup = svg.append("g")
                 .attr("id", lineId)
-                .attr("d", "M " + x1 +" "+y1 + "l"+ Math.sign((x2-x1)?(x2-x1):(y2-y1))*10+ " 0 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*2 +"-4 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*4+" 8 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*4+" -8 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*4+" 8 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*4+" -8 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*4+" 8 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*4+" -8 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*2+ " 4 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*10+ " 0")
-                .attr("stroke", "black")
-                .attr("stroke-width", "2")
-                .attr("stroke-linejoin", "bevel")
-                .attr("fill", "none")
-                .attr("transform", "rotate("+(y2===y1?0:Math.sign(y2<y1?y1-y2:y2-y1))*90+" "+x1+" "+y1+")")
+                .style("cursor", "pointer")
                 .on("click", () => setSelectedLine(lineId))
                 .on("dblclick", () => handleLineDoubleClick(lineId, 0))
-                .on("mouseover", (e)=> showLineCurrent(e, lineId))
-                .on("mouseout", ()=> hideLineCurrent());
-
-            return resistorgroup;
+                .on("mouseover", (e) => showLineCurrent(e, lineId))
+                .on("mouseout", () => hideLineCurrent());
+            
+            // Create a group for the rotated resistor
+            const rotatedGroup = resistorGroup.append("g")
+                .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+            
+            // Draw connecting lines (horizontal in local coordinate system)
+            rotatedGroup.append("line")
+                .attr("x1", -halfLength)
+                .attr("y1", 0)
+                .attr("x2", -zigzagWidth/2)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            rotatedGroup.append("line")
+                .attr("x1", zigzagWidth/2)
+                .attr("y1", 0)
+                .attr("x2", halfLength)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            // Create zigzag path
+            let zigzagPath = `M ${-zigzagWidth/2} 0`;
+            for (let i = 0; i < numPeaks; i++) {
+                const x = -zigzagWidth/2 + (i + 0.5) * peakWidth;
+                const y = (i % 2 === 0) ? -zigzagHeight : zigzagHeight;
+                zigzagPath += ` L ${x} ${y}`;
+                
+                const nextX = -zigzagWidth/2 + (i + 1) * peakWidth;
+                zigzagPath += ` L ${nextX} 0`;
+            }
+            
+            // Draw the zigzag resistor pattern
+            rotatedGroup.append("path")
+                .attr("d", zigzagPath)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2)
+                .attr("stroke-linejoin", "round")
+                .attr("fill", "none");
+            
+            // Calculate positions for polarity signs in global coordinates
+            const angleRad = angle * Math.PI / 180;
+            const signOffset = zigzagWidth/2 + 20;
+            
+            // Position for minus sign (left side of resistor)
+            const minusX = midX - Math.cos(angleRad) * signOffset;
+            const minusY = midY - Math.sin(angleRad) * signOffset;
+            
+            // Position for plus sign (right side of resistor)
+            const plusX = midX + Math.cos(angleRad) * signOffset;
+            const plusY = midY + Math.sin(angleRad) * signOffset;
+            
+            // Add polarity markings in global coordinates (not rotated)
+            // Minus sign
+            resistorGroup.append("text")
+                .attr("x", minusX)
+                .attr("y", minusY + 5) // Small offset for better visual alignment
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .attr("font-family", "Arial")
+                .attr("fill", "black")
+                .text("-");
+            
+            // Plus sign
+            resistorGroup.append("text")
+                .attr("x", plusX)
+                .attr("y", plusY + 5) // Small offset for better visual alignment
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .attr("font-family", "Arial")
+                .attr("fill", "black")
+                .text("+");
+            
+            return resistorGroup;
         }
     },
-    C:{
+    C: {
         id: 3,
         name: 'C',
         component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
-             const isVertical = x1 === x2;
-            const rotation = isVertical ? Math.sign(y2 - y1) : (x2 > x1 ? 0 : -2);
-            const transformString = `rotate(${rotation * 90} ${x1} ${y1}) translate(${x1 + 25}, ${y1 - 10})`;
-
-            const Capacitorgroup=svg.append("g")
-                .attr("id",lineId)
-            Capacitorgroup.append("text")
-                .attr("x", -20)  // Position relative to the circle center
+            // Calculate midpoint and dimensions
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            
+            // Calculate the angle of the line
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            
+            // Calculate the total line length
+            const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const halfLength = lineLength / 2;
+            
+            // Capacitor plate dimensions
+            const plateGap = 6; // Gap between plates
+            const plateHeight = 20; // Height of each plate
+            
+            // Create group for capacitor
+            const capacitorGroup = svg.append("g")
+                .attr("id", lineId)
+                .style("cursor", "pointer")
+                .on("click", () => setSelectedLine(lineId))
+                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+                .on("mouseover", (e) => showLineCurrent(e, lineId))
+                .on("mouseout", () => hideLineCurrent());
+            
+            // Create a group for the rotated capacitor
+            const rotatedGroup = capacitorGroup.append("g")
+                .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+            
+            // Draw connecting lines
+            rotatedGroup.append("line")
+                .attr("x1", -halfLength)
+                .attr("y1", 0)
+                .attr("x2", -plateGap/2)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            rotatedGroup.append("line")
+                .attr("x1", plateGap/2)
+                .attr("y1", 0)
+                .attr("x2", halfLength)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            // Draw capacitor plates
+            rotatedGroup.append("line")
+                .attr("x1", -plateGap/2)
+                .attr("y1", -plateHeight/2)
+                .attr("x2", -plateGap/2)
+                .attr("y2", plateHeight/2)
+                .attr("stroke", "black")
+                .attr("stroke-width", 3);
+            
+            rotatedGroup.append("line")
+                .attr("x1", plateGap/2)
+                .attr("y1", -plateHeight/2)
+                .attr("x2", plateGap/2)
+                .attr("y2", plateHeight/2)
+                .attr("stroke", "black")
+                .attr("stroke-width", 3);
+            
+            // Add polarity markings
+            rotatedGroup.append("text")
+                .attr("x", -plateGap/2 - 15)
                 .attr("y", 5)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "30px")
+                .attr("font-size", "16px")
                 .attr("font-family", "Arial")
                 .attr("fill", "black")
-                .attr("transform", transformString)
-                .text("-");
-
-            // Plus sign (at destination terminal)
-            Capacitorgroup.append("text")
-                .attr("x", 20)   // Position relative to the circle center
-                .attr("y", 5)
-                .attr("text-anchor", "middle")
-                .attr("font-size", "30px")
-                .attr("font-family", "Arial")
-                .attr("fill", "black")
-                .attr("transform", transformString)
+                .attr("transform", `rotate(${-angle})`)
                 .text("+");
-
-            Capacitorgroup.append("path")
-            .attr("id", lineId)
-            .attr("d", "M " + x1 +" "+y1 + "l"+ Math.sign((x2-x1)?(x2-x1):(y2-y1))*21.5+ " 0 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*0 +"-6 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*0+" 12 m "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*6 +"-6 l 0 -6 l 0 12 l 0 -6 l"+Math.sign((x2-x1)?(x2-x1):(y2-y1))*21.5+ " 0")
-            .attr("stroke", "black")
-            .attr("stroke-width", "2")
-            .attr("stroke-linejoin", "bevel")
-            .attr("fill", "none")
-            .attr("transform", "rotate("+(y2===y1?0:Math.sign(y2<y1?y1-y2:y2-y1))*90+" "+x1+" "+y1+")")
-            .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
-            .on("mouseover", (e)=> showLineCurrent(e, lineId))
-            .on("mouseout", ()=> hideLineCurrent())
-
-            return Capacitorgroup
+            
+            rotatedGroup.append("text")
+                .attr("x", plateGap/2 + 15)
+                .attr("y", 5)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .attr("font-family", "Arial")
+                .attr("fill", "black")
+                .attr("transform", `rotate(${-angle})`)
+                .text("-");
+            
+            return capacitorGroup;
         }
-        
     },
+    
     L: {
         id: 4,
         name: 'L',
-        component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => (
-            svg.append("path")
-            .attr("id", lineId)
-            .attr("d", "M -25,0 L -15,0 C -15,0 -15,-3 -12,-3 C -9,-3 -9,0 -9,0 C -9,0 -9,-3 -6,-3 C -3,-3 -3,0 -3,0 C -3,0 -3,-3 0,-3 C 3,-3 3,0 3,0 C 3,0 3,-3 6,-3 C 9,-3 9,0 9,0 C 9,0 9,-3 12,-3 C 15,-3 15,0 15,0 L 24,0")
-            .attr("stroke", "black")
-            .attr("stroke-width", "2")
-            .attr("stroke-linejoin", "bevel")
-            .attr("fill", "none")
-            .attr("transform", " rotate("+(x1===x2?Math.sign(y2-y1):(x2>x1?0:-2))*90+" "+x1+" "+y1+") "+`translate(${x1+25},${y1})`)
-            .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
-            .on("mouseover", (e)=> showLineCurrent(e, lineId))
-            .on("mouseout", ()=> hideLineCurrent())
-        )
+        component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+            // Calculate midpoint and dimensions
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            
+            // Calculate the angle of the line
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            
+            // Calculate the total line length
+            const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const halfLength = lineLength / 2;
+            
+            // Inductor coil dimensions
+            const coilWidth = 40;
+            const coilHeight = 12;
+            const numCoils = 4;
+            
+            // Create group for inductor
+            const inductorGroup = svg.append("g")
+                .attr("id", lineId)
+                .style("cursor", "pointer")
+                .on("click", () => setSelectedLine(lineId))
+                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+                .on("mouseover", (e) => showLineCurrent(e, lineId))
+                .on("mouseout", () => hideLineCurrent());
+            
+            // Create a group for the rotated inductor
+            const rotatedGroup = inductorGroup.append("g")
+                .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+            
+            // Draw connecting lines
+            rotatedGroup.append("line")
+                .attr("x1", -halfLength)
+                .attr("y1", 0)
+                .attr("x2", -coilWidth/2)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            rotatedGroup.append("line")
+                .attr("x1", coilWidth/2)
+                .attr("y1", 0)
+                .attr("x2", halfLength)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            // Draw inductor coils
+            let coilPath = `M ${-coilWidth/2} 0`;
+            const coilStep = coilWidth / numCoils;
+            
+            for (let i = 0; i < numCoils; i++) {
+                const x = -coilWidth/2 + i * coilStep;
+                coilPath += ` A ${coilStep/2} ${coilHeight/2} 0 0 1 ${x + coilStep} 0`;
+            }
+            
+            rotatedGroup.append("path")
+                .attr("d", coilPath)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2)
+                .attr("fill", "none");
+            
+            return inductorGroup;
+        }
     },
-    V: {
+    
+  V: {
     id: 5,
     name: 'V',
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
-        // Create a group element to contain all parts of the voltage source
+        // Calculate midpoint and dimensions
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const circleRadius = 15;
+        
+        // Calculate the angle of the line
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        const angleRad = angle * Math.PI / 180;
+        
+        // Calculate the total line length
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+        
+        // Create group for voltage source
         const voltageGroup = svg.append("g")
-            .attr("id", lineId);
-
-        // Minus sign at (x1,y1)
+            .attr("id", lineId)
+            .style("cursor", "pointer")
+            .on("click", () => setSelectedLine(lineId))
+            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+            .on("mouseover", (e) => showLineCurrent(e, lineId))
+            .on("mouseout", () => hideLineCurrent());
+        
+        // Create a group for the rotated voltage source
+        const rotatedGroup = voltageGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+        
+        // Draw connecting lines
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -circleRadius)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+        rotatedGroup.append("line")
+            .attr("x1", circleRadius)
+            .attr("y1", 0)
+            .attr("x2", halfLength)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+        // Draw circle
+        rotatedGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 0)
+            .attr("r", circleRadius)
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+        // Calculate positions for polarity signs in global coordinates
+        const signOffsetX = 6; // Distance from center along the line
+        
+        // Position for minus sign (left side of voltage source)
+        const minusX = midX - Math.cos(angleRad) * signOffsetX;
+        const minusY = midY - Math.sin(angleRad) * signOffsetX;
+        
+        // Position for plus sign (right side of voltage source)
+        const plusX = midX + Math.cos(angleRad) * signOffsetX;
+        const plusY = midY + Math.sin(angleRad) * signOffsetX;
+        
+        // Add polarity markings in global coordinates (not rotated)
+        // Minus sign
         voltageGroup.append("text")
-            .attr("x", x1 + 10)  
-            .attr("y", y1 - 5)   
+            .attr("x", minusX)
+            .attr("y", minusY + 5) // Small offset for better visual alignment
             .attr("text-anchor", "middle")
-            .attr("font-size", "30px")
+            .attr("font-size", "16px")
             .attr("font-family", "Arial")
             .attr("fill", "black")
             .text("-");
-
-        // Plus sign at (x2,y2)
+        
+        // Plus sign
         voltageGroup.append("text")
-            .attr("x", x2 - 10)  
-            .attr("y", y2 - 5)   
+            .attr("x", plusX)
+            .attr("y", plusY + 5) // Small offset for better visual alignment
             .attr("text-anchor", "middle")
-            .attr("font-size", "25px")
+            .attr("font-size", "16px")
             .attr("font-family", "Arial")
             .attr("fill", "black")
             .text("+");
         
-        // Voltage source symbol path
-        voltageGroup.append("path")
-            .attr("d", "M " + x1 +" "+y1 + "l"+ Math.sign((x2-x1)?(x2-x1):(y2-y1))*21.5+ " 0 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*0 +"-6 l "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*0+" 12 m "+Math.sign((x2-x1)?(x2-x1):(y2-y1))*6 +"-6 l 0 -15 l 0 30 l 0 -15 l"+Math.sign((x2-x1)?(x2-x1):(y2-y1))*21.5+ " 0")
-            .attr("stroke", "black")
-            .attr("stroke-width", "2")
-            .attr("stroke-linejoin", "bevel")
-            .attr("fill", "none")
-            .attr("transform", "rotate("+(y2===y1?0:Math.sign(y2<y1?y1-y2:y2-y1))*90+" "+x1+" "+y1+")")
-            .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
-            .on("mouseover", (e)=> showLineCurrent(e, lineId))
-            .on("mouseout", ()=> hideLineCurrent());
+        return voltageGroup;
     }
 },
-    ACSource: {
+
+AC: {
     id: 6,
-    name: 'ACSource',
+    name: 'AC',
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
-        // Create a group element to contain all parts of the AC source
+        // Calculate midpoint and dimensions
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const circleRadius = 10;
+        
+        // Calculate the angle of the line
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        const angleRad = angle * Math.PI / 180;
+        
+        // Calculate the total line length
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+        
+        // Create group for AC source
         const acSourceGroup = svg.append("g")
-            .attr("id", lineId);
-
-        // Determine rotation and positioning
-        const isVertical = x1 === x2;
-        const rotation = isVertical ? Math.sign(y2 - y1) : (x2 > x1 ? 0 : -2);
-        const transformString = `rotate(${rotation * 90} ${x1} ${y1}) translate(${x1 + 25}, ${y1 - 10})`;
-
-        // Minus sign (at source terminal)
-        acSourceGroup.append("text")
-            .attr("x", -20)  // Position relative to the circle center
-            .attr("y", 5)
-            .attr("text-anchor", "middle")
-            .attr("font-size", "16px")
-            .attr("font-family", "Arial")
-            .attr("fill", "black")
-            .attr("transform", transformString)
-            .text("-");
-
-        // Plus sign (at destination terminal)
-        acSourceGroup.append("text")
-            .attr("x", 20)   // Position relative to the circle center
-            .attr("y", 5)
-            .attr("text-anchor", "middle")
-            .attr("font-size", "16px")
-            .attr("font-family", "Arial")
-            .attr("fill", "black")
-            .attr("transform", transformString)
-            .text("+");
-
-        // AC source symbol path
-        acSourceGroup.append("path")
-     .attr("d", "M -26,10 L 0,10.5 C 0,10.5 0.75,8 2.25,8 C 3.75,8 5.25,13 6.75,13 C 8.25,13 9,10.5 9,10.5 L 12.5,10.5 " +
-        "A 7.5,7.5 0 1,0 -2.5,10.5 " +
-        "A 7.5,7.5 0 1,0 12.5,10.5 " +
-        "L 24,9.5")
-            .attr("stroke", "black")
-            .attr("stroke-width", "2")
-            .attr("stroke-linejoin", "bevel")
-            .attr("fill", "none")
-            .attr("transform", transformString)
+            .attr("id", lineId)
+            .style("cursor", "pointer")
             .on("click", () => setSelectedLine(lineId))
-            .on("mouseover", (e) => showLineCurrent(e, lineId))
             .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+            .on("mouseover", (e) => showLineCurrent(e, lineId))
             .on("mouseout", () => hideLineCurrent());
+        
+        // Create a group for the rotated AC source
+        const rotatedGroup = acSourceGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+        
+        // Draw connecting lines
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -circleRadius)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+        rotatedGroup.append("line")
+            .attr("x1", circleRadius)
+            .attr("y1", 0)
+            .attr("x2", halfLength)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+        // Draw circle
+        rotatedGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 0)
+            .attr("r", circleRadius)
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+        // Draw sine wave inside circle
+        const sineWavePath = "M -8 0 Q -4 -6 0 0 Q 4 6 8 0";
+        rotatedGroup.append("path")
+            .attr("d", sineWavePath)
+            .attr("stroke", "black")
+            .attr("stroke-width", 1.5)
+            .attr("fill", "none");
+        
+        // Calculate positions for polarity signs in global coordinates
+        const signOffset1 = circleRadius + 17; // Distance from center
+        
+        // Position for minus sign (left side of AC source)
+        const minusX = midX - Math.cos(angleRad) * signOffset1;
+        const minusY = midY - Math.sin(angleRad) * signOffset1;
+        const signOffset2 = circleRadius + 15; // Distance from center
+        // Position for plus sign (right side of AC source)
+        const plusX = midX + Math.cos(angleRad) * signOffset2;
+        const plusY = midY + Math.sin(angleRad) * signOffset2;
+        
+        // Add polarity markings in global coordinates (not rotated)
+        // Minus sign
+        acSourceGroup.append("text")
+            .attr("x", minusX-7)
+            .attr("y", minusY - 4) // Small offset for better visual alignment
+            .attr("text-anchor", "middle")
+            .attr("font-size", "22px")
+            .attr("font-family", "Arial")
+            .attr("fill", "black")
+            .text("-");
+        
+        // Plus sign
+        acSourceGroup.append("text")
+            .attr("x", plusX-7)
+            .attr("y", plusY - 5) // Small offset for better visual alignment
+            .attr("text-anchor", "middle")
+            .attr("font-size", "18px")
+            .attr("font-family", "Arial")
+            .attr("fill", "black")
+            .text("+");
+        
+        return acSourceGroup;
     }
 },
+    
     Diode: {
         id: 7,
         name: 'Diode',
         component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
-            if ((x2 < x1) || (x1 === x2 && y2 < y1)) {
-                [x1, x2] = [x2, x1];
-                [y1, y2] = [y2, y1];
-            }
-            const dir = Math.sign((x2 - x1) ? (x2 - x1) : (y2 - y1));
-            svg.append("path")
+            // Calculate midpoint and dimensions
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            
+            // Calculate the angle of the line
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            
+            // Calculate the total line length
+            const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const halfLength = lineLength / 2;
+            
+            // Diode dimensions
+            const triangleWidth = 12;
+            const triangleHeight = 10;
+            
+            // Create group for diode
+            const diodeGroup = svg.append("g")
                 .attr("id", lineId)
-                .attr("d", 
-                    "M " + x1 + " " + y1 +
-                    " l" + dir * 20 + " 0" +                     // lead-in
-                    " l0 -6 l10 6 l-10 6 l0 -6" +               // triangle
-                    " m10 0 l0 -6 l0 12 m0 -6" +                // vertical bar
-                    " l" + dir * 19+ " 0"                      // lead-out
-                )
-                .attr("stroke", "black")
-                .attr("stroke-width", "2")
-                .attr("stroke-linejoin", "bevel")
-                .attr("fill", "none")
-                .attr("transform", "rotate(" + ((y2 === y1 ? 0 : Math.sign(y2 - y1) * 90)) + " " + x1 + " " + y1 + ")")
+                .style("cursor", "pointer")
                 .on("click", () => setSelectedLine(lineId))
+                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
                 .on("mouseover", (e) => showLineCurrent(e, lineId))
-                .on("dblclick", () => handleLineDoubleClick(lineId, 0));
+                .on("mouseout", () => hideLineCurrent());
+            
+            // Create a group for the rotated diode
+            const rotatedGroup = diodeGroup.append("g")
+                .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+            
+            // Draw connecting lines
+            rotatedGroup.append("line")
+                .attr("x1", -halfLength)
+                .attr("y1", 0)
+                .attr("x2", -triangleWidth/2)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            rotatedGroup.append("line")
+                .attr("x1", triangleWidth/2 + 2)
+                .attr("y1", 0)
+                .attr("x2", halfLength)
+                .attr("y2", 0)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            // Draw triangle (anode)
+            const trianglePoints = [
+                [-triangleWidth/2, 0],
+                [triangleWidth/2, -triangleHeight/2],
+                [triangleWidth/2, triangleHeight/2]
+            ];
+            
+            rotatedGroup.append("polygon")
+                .attr("points", trianglePoints.map(d => d.join(",")).join(" "))
+                .attr("fill", "black")
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+            
+            // Draw cathode line
+            rotatedGroup.append("line")
+                .attr("x1", triangleWidth/2)
+                .attr("y1", -triangleHeight/2)
+                .attr("x2", triangleWidth/2)
+                .attr("y2", triangleHeight/2)
+                .attr("stroke", "black")
+                .attr("stroke-width", 3);
+            
+            return diodeGroup;
         }
     },
         
@@ -698,7 +992,349 @@ NMosfet: {
 
         return voltmeterGroup;
     }
+},
+VCVS: {
+    id: "14",
+    name: "VCVS",
+    component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+        // Calculate midpoint and dimensions
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const diamondSize = 17; // Half the diagonal of the diamond
+        
+        // Calculate the angle of the line
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        
+        // Calculate the total line length
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+        
+        // Create group for dependent voltage source
+        const voltageSourceGroup = svg.append("g")
+            .attr("id", lineId)
+            .style("cursor", "pointer")
+            .on("click", () => handleLineClick(lineId))
+            .on("dblclick", (event) => {
+                event.stopPropagation();
+                handleLineDoubleClick(lineId, 0);
+            })
+            .on("mouseover", (event) => showLineCurrent(event, lineId))
+            .on("mouseout", () => hideLineCurrent());
+
+        // Create a group for the rotated voltage source
+        const rotatedGroup = voltageSourceGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+
+        // Draw connecting lines (horizontal in local coordinate system)
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -diamondSize)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        rotatedGroup.append("line")
+            .attr("x1", diamondSize)
+            .attr("y1", 0)
+            .attr("x2", halfLength)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Draw diamond shape
+        const diamondPoints = [
+            [0, -diamondSize],    // top
+            [diamondSize, 0],     // right
+            [0, diamondSize],     // bottom
+            [-diamondSize, 0]     // left
+        ];
+
+        rotatedGroup.append("polygon")
+            .attr("points", diamondPoints.map(d => d.join(",")).join(" "))
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Add "+" symbol at the top (counter-rotate to keep text upright)
+        rotatedGroup.append("text")
+            .attr("y", 5)
+            .attr("x", diamondSize/2 )
+            .attr("text-anchor", "middle")
+            .attr("font-family", "Arial, sans-serif")
+            .attr("font-size", "12px")
+            .attr("font-weight", "bold")
+            .attr("fill", "black")
+            .attr("transform", `rotate(${-angle})`)
+            .text("+");
+
+        // Add "−" symbol at the bottom (counter-rotate to keep text upright)
+        rotatedGroup.append("text")
+            .attr("y", 5)
+            .attr("x", -diamondSize/2 + 2)
+            .attr("text-anchor", "middle")
+            .attr("font-family", "Arial, sans-serif")
+            .attr("font-size", "12px")
+            .attr("font-weight", "bold")
+            .attr("fill", "black")
+            .attr("transform", `rotate(${-angle})`)
+            .text("−");
+
+        return voltageSourceGroup;
+    }
+},
+VCCS: {
+    id: "15",
+    name: "VCCS",
+     component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const diamondSize = 15;
+    const arrowHeadSize = 5;
+
+    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const halfLength = lineLength / 2;
+
+    const currentSourceGroup = svg.append("g")
+      .attr("id", lineId)
+      .style("cursor", "pointer")
+      .on("click", () => handleLineClick(lineId))
+      .on("dblclick", (event) => {
+        event.stopPropagation();
+        handleLineDoubleClick(lineId, "dependent_current");
+      })
+      .on("mouseover", (event) => showLineCurrent(event, lineId))
+      .on("mouseout", () => hideLineCurrent());
+
+    const rotatedGroup = currentSourceGroup.append("g")
+      .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+
+    // Draw connecting lines
+    rotatedGroup.append("line")
+      .attr("x1", -halfLength)
+      .attr("y1", 0)
+      .attr("x2", -diamondSize)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    rotatedGroup.append("line")
+      .attr("x1", diamondSize)
+      .attr("y1", 0)
+      .attr("x2", halfLength)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Diamond shape
+    const diamondPoints = [
+      [0, -diamondSize],
+      [diamondSize, 0],
+      [0, diamondSize],
+      [-diamondSize, 0]
+    ];
+
+    rotatedGroup.append("polygon")
+      .attr("points", diamondPoints.map(d => d.join(",")).join(" "))
+      .attr("fill", "white")
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Arrow (always points to right for simplicity, since group is rotated)
+    const arrowGroup = rotatedGroup.append("g");
+
+    // Arrow shaft
+    arrowGroup.append("line")
+      .attr("x1", -6)
+      .attr("y1", 0)
+      .attr("x2", 6)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Arrow head
+    arrowGroup.append("polygon")
+      .attr("points", [
+        [6, 0],
+        [6 - arrowHeadSize, -arrowHeadSize],
+        [6 - arrowHeadSize, arrowHeadSize]
+      ].map(d => d.join(",")).join(" "))
+      .attr("fill", "black");
+
+    return currentSourceGroup;
+  }
+},
+CCVS: {
+    id: "16",
+    name: "CCVS",
+    component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+        // Calculate midpoint and dimensions
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const diamondSize = 17; // Half the diagonal of the diamond
+        
+        // Calculate the angle of the line
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        
+        // Calculate the total line length
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+        
+        // Create group for dependent voltage source
+        const voltageSourceGroup = svg.append("g")
+            .attr("id", lineId)
+            .style("cursor", "pointer")
+            .on("click", () => handleLineClick(lineId))
+            .on("dblclick", (event) => {
+                event.stopPropagation();
+                handleLineDoubleClick(lineId, 0);
+            })
+            .on("mouseover", (event) => showLineCurrent(event, lineId))
+            .on("mouseout", () => hideLineCurrent());
+
+        // Create a group for the rotated voltage source
+        const rotatedGroup = voltageSourceGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+
+        // Draw connecting lines (horizontal in local coordinate system)
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -diamondSize)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        rotatedGroup.append("line")
+            .attr("x1", diamondSize)
+            .attr("y1", 0)
+            .attr("x2", halfLength)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Draw diamond shape
+        const diamondPoints = [
+            [0, -diamondSize],    // top
+            [diamondSize, 0],     // right
+            [0, diamondSize],     // bottom
+            [-diamondSize, 0]     // left
+        ];
+
+        rotatedGroup.append("polygon")
+            .attr("points", diamondPoints.map(d => d.join(",")).join(" "))
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Add "+" symbol at the top (counter-rotate to keep text upright)
+        rotatedGroup.append("text")
+            .attr("y", 5)
+            .attr("x", diamondSize/2 )
+            .attr("text-anchor", "middle")
+            .attr("font-family", "Arial, sans-serif")
+            .attr("font-size", "12px")
+            .attr("font-weight", "bold")
+            .attr("fill", "black")
+            .attr("transform", `rotate(${-angle})`)
+            .text("+");
+
+        // Add "−" symbol at the bottom (counter-rotate to keep text upright)
+        rotatedGroup.append("text")
+            .attr("y", 5)
+            .attr("x", -diamondSize/2 + 2)
+            .attr("text-anchor", "middle")
+            .attr("font-family", "Arial, sans-serif")
+            .attr("font-size", "12px")
+            .attr("font-weight", "bold")
+            .attr("fill", "black")
+            .attr("transform", `rotate(${-angle})`)
+            .text("−");
+
+        return voltageSourceGroup;
+    }
+},
+CCCS: {
+    id: "17",
+    name: "CCCS",
+     component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const diamondSize = 15;
+    const arrowHeadSize = 5;
+
+    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const halfLength = lineLength / 2;
+
+    const currentSourceGroup = svg.append("g")
+      .attr("id", lineId)
+      .style("cursor", "pointer")
+      .on("click", () => handleLineClick(lineId))
+      .on("dblclick", (event) => {
+        event.stopPropagation();
+        handleLineDoubleClick(lineId, "dependent_current");
+      })
+      .on("mouseover", (event) => showLineCurrent(event, lineId))
+      .on("mouseout", () => hideLineCurrent());
+
+    const rotatedGroup = currentSourceGroup.append("g")
+      .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+
+    // Draw connecting lines
+    rotatedGroup.append("line")
+      .attr("x1", -halfLength)
+      .attr("y1", 0)
+      .attr("x2", -diamondSize)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    rotatedGroup.append("line")
+      .attr("x1", diamondSize)
+      .attr("y1", 0)
+      .attr("x2", halfLength)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Diamond shape
+    const diamondPoints = [
+      [0, -diamondSize],
+      [diamondSize, 0],
+      [0, diamondSize],
+      [-diamondSize, 0]
+    ];
+
+    rotatedGroup.append("polygon")
+      .attr("points", diamondPoints.map(d => d.join(",")).join(" "))
+      .attr("fill", "white")
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Arrow (always points to right for simplicity, since group is rotated)
+    const arrowGroup = rotatedGroup.append("g");
+
+    // Arrow shaft
+    arrowGroup.append("line")
+      .attr("x1", -6)
+      .attr("y1", 0)
+      .attr("x2", 6)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Arrow head
+    arrowGroup.append("polygon")
+      .attr("points", [
+        [6, 0],
+        [6 - arrowHeadSize, -arrowHeadSize],
+        [6 - arrowHeadSize, arrowHeadSize]
+      ].map(d => d.join(",")).join(" "))
+      .attr("fill", "black");
+
+    return currentSourceGroup;
+  }
 }
 }
-
-

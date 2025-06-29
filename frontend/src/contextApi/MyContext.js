@@ -46,7 +46,8 @@ let temp = {};
   valMap.forEach((value, key) => {
     const node1 = updatedNodes.get(key.split('_')[1]);
     const node2 = updatedNodes.get(key.split('_')[2]);
-    const type = key.charAt(0); // First character indicates the component type
+    const type = key.split('_')[0];
+// First character indicates the component type
 
     let component = {
       type: '',
@@ -55,15 +56,18 @@ let temp = {};
       node2: node2,
       node3:null,
       node4:null,
-      value: ''
+      value: '',
+      dependentnode1:null,
+      dependentnode2:null,
+      Vcontrol:null,
     };
 
     switch (type) {
-      case "A":
+      case "AC":
         sourceCnt++;
         component.type = 'AC Source';
         component.id = `V${sourceCnt}`;
-        component.value = `{${value}*sin(2*pi*${frequency}*t)}`;
+        component.value = `${value} `;
         temp[key] = `V${sourceCnt}`;
         break;
       case "L":
@@ -90,64 +94,114 @@ let temp = {};
         component.id = `W${components.filter(comp => comp.type === 'Wire').length + 1}`;
         temp[key] = `W${components.filter(comp => comp.type === 'Wire').length + 1}`;
         break;
-       case "D":
-      
+      case "D":
         component.type = 'Diode';
         component.id = `D${components.filter(comp => comp.type === 'Diode').length + 1}`;
         component.value = `${value}`;
         temp[key] = `D${components.filter(comp => comp.type === 'Diode').length + 1}`;
         break;
         case "NT":
-        component.type = 'Npn Transistor';
-        component.id = `T${components.filter(comp => comp.type === 'Npn Transistor').length + 1}`;
-        component.value = `${value}`;
-        component.node3 = updatedNodes.get(key.split('_')[3]);
-        temp[key] = `T${components.filter(comp => comp.type === 'Npn Transistor').length + 1}`;
-        break;
+          component.type = 'Npn Transistor';
+          component.id = `T${components.filter(comp => comp.type === 'Npn Transistor').length + 1}`;
+          component.value = `${value}`;
+          component.node3 = updatedNodes.get(key.split('_')[3]);
+          temp[key] = `T${components.filter(comp => comp.type === 'Npn Transistor').length + 1}`;
+          break;
         case "PT":
-        component.type = 'Pnp Transistor';
+          component.type = 'Pnp Transistor';
           component.id = `T${components.filter(comp => comp.type === 'Pnp Transistor').length + 1}`;
           component.value = `${value}`;
           component.node3 = updatedNodes.get(key.split('_')[3]);
           temp[key] = `T${components.filter(comp => comp.type === 'Pnp Transistor').length + 1}`;
           break;
-          case "PM":
-            component.type = 'P Mosfet';
-            component.id = `T${components.filter(comp => comp.type === 'P Mosfet').length + 1}`;
-            component.value = `${value}`;
-            component.node3 = updatedNodes.get(key.split('_')[3]);
-            component.node3 = updatedNodes.get(key.split('_')[3]);
-            temp[key] = `T${components.filter(comp => comp.type === 'P Mosfet').length + 1}`;
-            break;
-            case "NM":
-              component.type = 'N Mosfet';
-              component.id = `T${components.filter(comp => comp.type === 'N Mosfet').length + 1}`;
-              component.value = `${value}`;
-              component.node3 = updatedNodes.get(key.split('_')[3]);
-              component.node3 = updatedNodes.get(key.split('_')[3]);
-              temp[key] = `T${components.filter(comp => comp.type === 'N Mosfet').length + 1}`;
-              break;
-            case "V":
-              sourceCnt++;
-              component.type = 'DC Source';
-              component.id = `V${sourceCnt}`;
-              component.value = `${value}`;
-              temp[key] = `V${sourceCnt}`;
-              break;
-              case "AM":
-              component.type = 'Ammeter';
-              component.id = `A${components.filter(comp => comp.type === 'Ammeter').length + 1}`;
-              component.value = '0'; // Ammeters don't have a value, they measure current
-              temp[key] = `A${components.filter(comp => comp.type === 'Ammeter').length + 1}`;
-              break;
-              case "VM":
-              component.type = 'Voltmeter';
-              component.id = `VM${components.filter(comp => comp.type === 'Voltmeter').length + 1}`;
-              component.value = '0'; // Voltmeters are ideal (infinite resistance)
-              temp[key] = `VM${components.filter(comp => comp.type === 'Voltmeter').length + 1}`;
-              break;
-      
+        case "PM":
 
+          component.type = 'P Mosfet';
+          component.id = `T${components.filter(comp => comp.type === 'P Mosfet').length + 1}`;
+          component.value = `${value}`;
+          component.node3 = updatedNodes.get(key.split('_')[3]);
+          component.node4 = updatedNodes.get(key.split('_')[3]);
+          temp[key] = `T${components.filter(comp => comp.type === 'P Mosfet').length + 1}`;
+          break;
+        case "NM":
+          component.type = 'N Mosfet';
+          component.id = `T${components.filter(comp => comp.type === 'N Mosfet').length + 1}`;
+          component.value = `${value}`;
+          component.node3 = updatedNodes.get(key.split('_')[3]);
+          component.node4 = updatedNodes.get(key.split('_')[4]);
+          temp[key] = `T${components.filter(comp => comp.type === 'N Mosfet').length + 1}`;
+          break;
+        case "V":
+          sourceCnt++;
+          component.type = 'DC Source';
+          component.id = `V${sourceCnt}`;
+          component.value = `${value}`;
+          temp[key] = `V${sourceCnt}`;
+          break;
+        case "Ammeter":
+          component.type = 'Ammeter';
+          component.id = `AM${components.filter(comp => comp.type === 'Ammeter').length + 1}`;
+          component.value = '0'; // Ammeters don't have a value, they measure current
+          temp[key] = `AM${components.filter(comp => comp.type === 'Ammeter').length + 1}`;
+          break;
+        case "Voltmeter":
+          component.type = 'Voltmeter';
+          component.id = `VM${components.filter(comp => comp.type === 'Voltmeter').length + 1}`;
+          component.value = '0'; // Ammeters don't have a value, they measure current
+          temp[key] = `VM${components.filter(comp => comp.type === 'Voltmeter').length + 1}`;
+          break;
+        case "VCVS":
+            component.type = 'VCVS';
+            component.id = `E${components.filter(comp => comp.type === 'VCVS').length + 1}`;
+            // component.value = `${value}`;
+            if (typeof value === 'object') {
+              component.value = value.value;
+              component.dependentnode1 = value.dependentNode1;
+              component.dependentnode2 = value.dependentNode2;
+            } else {
+              component.value = `${value}`;
+            }
+            temp[key] = component.id;
+            break;
+          
+        case "VCCS":
+          component.type = 'VCCS';
+          component.id = `G${components.filter(comp => comp.type === 'VCCS').length + 1}`;
+          if (typeof value === 'object') {
+            component.value = value.value;
+            component.dependentnode1 = value.dependentNode1;
+            component.dependentnode2 = value.dependentNode2;
+          } else {
+            component.value = `${value}`;
+          }
+          temp[key] = `G${components.filter(comp => comp.type === 'CCCS').length + 1}`;
+          break;
+
+          case "CCVS":
+            component.type = 'CCVS';
+            component.id = `H${components.filter(comp => comp.type === 'CCVS').length + 1}`;
+            // component.value = `${value}`;
+            if (typeof value === 'object') {
+              component.value = value.value;
+              component.Vcontrol=value.Vcontrol;
+            } else {
+              component.value = `${value}`;
+            }
+            temp[key] = component.id;
+            break;
+          
+        case "CCCS":
+          component.type = 'CCCS';
+          component.id = `F${components.filter(comp => comp.type === 'CCCS').length + 1}`;
+          if (typeof value === 'object') {
+            component.value = value.value;
+            component.Vcontrol=value.Vcontrol;
+           
+          } else {
+            component.value = `${value}`;
+          }
+          temp[key] = `F${components.filter(comp => comp.type === 'CCCS').length + 1}`;
+          break;
       default:
         component.type = 'Generic';
         component.id = key;
@@ -156,6 +210,7 @@ let temp = {};
 
     components.push(component);
   });
+  
   const getCurrentValue = (lineId, simData, temp) => {
   if (!simData || !simData.current || !temp[lineId]) {
     return "No data";
@@ -188,7 +243,7 @@ let temp = {};
 const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
   const firstChar = lineId.slice(0, 2); // Use first 2 characters for ammeter (AM)
   
-  if (firstChar === 'AM') {
+  if (firstChar === 'am') {
     return (
       <div style={{
         padding: '10px',
@@ -212,6 +267,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
   
   return null;
 };
+
   const sendSimulationData = async () => {
     try {
       // Find ground node (node with value 0)
@@ -254,26 +310,26 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
       console.log('Simulation results:', data);
       
-      if (data.status === 'error') {
-        throw new Error(data.error || 'Unknown error occurred during simulation');
-      }
+      // if (data.status === 'error') {
+      //   throw new Error(data.error || 'Unknown error occurred during simulation');
+      // }
       
       setSimData(data);
       alert('Simulation completed successfully!');
       
     } catch (error) {
       console.error('=== COMPLETE ERROR DETAILS ===');
-      console.error('Error:', error);
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      console.error('=============================');
+      // console.error('Error:', error);
+      // console.error('Error name:', error.name);
+      // console.error('Error message:', error.message);
+      // console.error('Error stack:', error.stack);
+      // console.error('=============================');
       alert(`Simulation failed: ${error.message}`);
     }
   }
@@ -393,7 +449,8 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         simData,
         valMap,
         setValMap,
-        temp
+        temp,
+        AmmeterDisplay
       }}
     >
       {children}
@@ -404,4 +461,3 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
 export const useMyContext = ()=>{
     return useContext(MyContext);
 }
-

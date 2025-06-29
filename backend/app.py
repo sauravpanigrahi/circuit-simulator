@@ -49,9 +49,18 @@ if not os.path.exists(static_dir):
 app.config['IMG_FILE_NAME'] = ""
 
 def validate_component(component):
-    """Validate component data structure"""
+    """Validate component data structure and values"""
     required_fields = ['type', 'id', 'node', 'value']
-    return all(field in component for field in required_fields)
+    if not all(field in component for field in required_fields):
+        return False
+        
+    # Validate value is a valid number
+    try:
+        float(component['value'])
+        return True
+    except (ValueError, TypeError):
+        logger.error(f"Invalid value in component {component['id']}: {component['value']}")
+        return False
 
 def generate_netlist(circuit_data):
     """
@@ -73,7 +82,8 @@ def generate_netlist(circuit_data):
         # Process each component
         for component in circuit_data:
             if not validate_component(component):
-                raise ValueError(f"Invalid component data: {component}")
+                logger.warning(f"Skipping invalid component: {component}")
+                continue
                 
             comp_type = component['type']
             nodes = component['node']
@@ -92,46 +102,48 @@ def generate_netlist(circuit_data):
             unique_id = f"{component_counts[base_id]}" if component_counts[base_id] > 1 else 1
             
             # Handle different component types
-            if comp_type == 'R' or comp_type == 'Resistor':
-                circuit.add(f'R{unique_id} {node1} {node2} {value}')
-            elif comp_type == 'C' or comp_type == 'Capacitor':
-                circuit.add(f'C{unique_id} {node1} {node2} {value}')
-            elif comp_type == 'L' or comp_type == 'Inductor':
-                circuit.add(f'L{unique_id} {node1} {node2} {value}')
-            elif comp_type == 'V' or comp_type == 'VoltageSource':
-                circuit.add(f'V{unique_id} {node1} {node2} {value}')
-            elif comp_type == 'ACSource':
-                # AC source is a voltage source with AC specification including frequency
-                frequency = component.get('frequency', 50)  # Default to 50Hz if not specified
-                circuit.add(f'V{unique_id} {node1} {node2} sin 0 {value} {frequency} 0 0 0')
-            elif comp_type == 'I' or comp_type == 'CurrentSource':
-                circuit.add(f'I{unique_id} {node1} {node2} {value}')
-            elif comp_type == 'D' or comp_type == 'Diode':
-                # Diode syntax in Lcapy only takes nodes, not value
-                circuit.add(f'D{unique_id} {node1} {node2} ')
-            elif comp_type == 'W' or comp_type == 'Wire':
-                # For wires, we just connect the nodes without adding a component
-                circuit.add(f'W{unique_id} {node1} {node2}')
-            elif comp_type == 'NpnTransistor':
-                if len(nodes) != 3:
-                    raise ValueError(f"NPN transistor requires 3 nodes, got {len(nodes)}")
-                circuit.add(f'Q{unique_id} {node1} {node2} {node3} QN')
-            elif comp_type == 'PnpTransistor':
-                if len(nodes) != 3:
-                    raise ValueError(f"PNP transistor requires 3 nodes, got {len(nodes)}")
-                circuit.add(f'Q{unique_id} {node1} {node2} {node3} QP')
-            elif comp_type == 'NMosfet':
-                if len(nodes) != 3:
-                    raise ValueError(f"NMOS requires 3 nodes, got {len(nodes)}")
-                # Lcapy MOSFET syntax: Mname Nd Ng Ns [Value=name]
-                circuit.add(f'M{unique_id} {node1} {node2} {node3} Value=NMOS')
-            elif comp_type == 'PMosfet':
-                if len(nodes) != 3:
-                    raise ValueError(f"PMOS requires 3 nodes, got {len(nodes)}")
-                # Lcapy MOSFET syntax: Mname Nd Ng Ns [Value=name]
-                circuit.add(f'M{unique_id} {node1} {node2} {node3} Value=PMOS')
-            else:
-                logger.warning(f"Unsupported component type: {comp_type}")
+            try:
+                if comp_type == 'R' or comp_type == 'Resistor':
+                    circuit.add(f'R{unique_id} {node1} {node2} {float(value)}')
+                elif comp_type == 'C' or comp_type == 'Capacitor':
+                    circuit.add(f'C{unique_id} {node1} {node2} {float(value)}')
+                elif comp_type == 'L' or comp_type == 'Inductor':
+                    circuit.add(f'L{unique_id} {node1} {node2} {float(value)}')
+                elif comp_type == 'V' or comp_type == 'VoltageSource':
+                    circuit.add(f'V{unique_id} {node1} {node2} {float(value)}')
+                elif comp_type == 'ACSource':
+                    # AC source is a voltage source with AC specification including frequency
+                    frequency = float(component.get('frequency', 50))  # Default to 50Hz if not specified
+                    circuit.add(f'V{unique_id} {node1} {node2} sin 0 {float(value)} {frequency} 0 0 0')
+                elif comp_type == 'I' or comp_type == 'CurrentSource':
+                    circuit.add(f'I{unique_id} {node1} {node2} {float(value)}')
+                elif comp_type == 'D' or comp_type == 'Diode':
+                    # Diode syntax in Lcapy only takes nodes, not value
+                    circuit.add(f'D{unique_id} {node1} {node2}')
+                elif comp_type == 'W' or comp_type == 'Wire':
+                    # For wires, we just connect the nodes without adding a component
+                    circuit.add(f'W{unique_id} {node1} {node2}')
+                elif comp_type == 'NpnTransistor':
+                    if len(nodes) != 3:
+                        raise ValueError(f"NPN transistor requires 3 nodes, got {len(nodes)}")
+                    circuit.add(f'Q{unique_id} {node1} {node2} {node3} QN')
+                elif comp_type == 'PnpTransistor':
+                    if len(nodes) != 3:
+                        raise ValueError(f"PNP transistor requires 3 nodes, got {len(nodes)}")
+                    circuit.add(f'Q{unique_id} {node1} {node2} {node3} QP')
+                elif comp_type == 'NMosfet':
+                    if len(nodes) != 3:
+                        raise ValueError(f"NMOS requires 3 nodes, got {len(nodes)}")
+                    circuit.add(f'M{unique_id} {node1} {node2} {node3} Value=NMOS')
+                elif comp_type == 'PMosfet':
+                    if len(nodes) != 3:
+                        raise ValueError(f"PMOS requires 3 nodes, got {len(nodes)}")
+                    circuit.add(f'M{unique_id} {node1} {node2} {node3} Value=PMOS')
+                else:
+                    logger.warning(f"Unsupported component type: {comp_type}")
+                    continue
+            except ValueError as e:
+                logger.error(f"Error processing component {comp_type}{unique_id}: {e}")
                 continue
         
         # Add ground node reference using Lcapy's syntax
@@ -141,10 +153,6 @@ def generate_netlist(circuit_data):
         netlist = circuit.netlist()
         logger.info(f"Generated netlist: {netlist}")
         
-        # Write netlist to file
-        # with open('netlist.txt', 'w') as f:
-        #     f.write(netlist)
-            
         return netlist
     except Exception as e:
         logger.error(f"Error generating netlist: {str(e)}")
@@ -223,29 +231,74 @@ def simulation():
             logger.warning("Invalid frequency value, defaulting to 0")
 
         # Process components
+        # Replace the problematic section in your /simulation route with this:
+
+# Process components
         for comp in components:
             type_prefix = comp.get('type', '')
             id_ = comp.get('id', '')
             node1 = comp.get('node1', '')
             node2 = comp.get('node2', '')
-            value = comp.get('value', '')
-
-            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'Generic']:
-                if type_prefix in [ 'DC Source']:
+            
+            # Initialize dependent nodes with empty strings
+            depnode3 = ''
+            depnode4 = ''
+            depVoltage=''
+            # Handle value extraction properly
+            raw_value = comp.get('value', '')
+            
+            # Debug log to see what we're receiving
+            logger.info(f"Processing component {id_}: type={type_prefix}, raw_value={raw_value}")
+            
+            if isinstance(raw_value, dict):
+                # This is a dependent source with nested structure
+                value = raw_value.get('value', '')
+                depnode3 = raw_value.get('dependentNode1', '')
+                depnode4 = raw_value.get('dependentNode2', '')
+                depVoltage=raw_value.get('Vcontrol','')
+                logger.info(f"Extracted from dict - value: {value}, depnode3: {depnode3}, depnode4: {depnode4}")
+            else:
+                # This is a regular component
+                value = raw_value
+                # Try to get dependent nodes from component level (fallback)
+                depnode3 = comp.get('dependentnode1', '')
+                depnode4 = comp.get('dependentnode2', '')
+                depVoltage=comp.get('Vcontrol','')
+            
+            # Ensure value is a string/number, not an object
+            if isinstance(value, dict):
+                logger.error(f"Value is still a dict for component {id_}: {value}")
+                value = str(value)  # Fallback to string representation
+            
+            # Generate the netlist line based on component type
+            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS', 'Generic']:
+                if type_prefix == 'DC Source':
                     line = f"{id_} {node2} {node1} {value}\n"
-                elif type_prefix in ['AC Source']:
-                    if analysisType == "dc":
-                        line = f"{id_} {node1} {node2} {value}\n"
-                    else:
-                        line = f"{id_} {node1} {node2} AC {value} 0\n"    
-
-                elif type_prefix in ['Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet']:
-                    line = f"{id_} {node1} {node2} {value}\n"
+                elif type_prefix == 'AC Source':
+                    line = f"{id_} {node1} {node2} AC {value}\n"    
+                elif type_prefix == 'VCVS':
+                    # VCVS format: E<n> <+node> <-node> <+control> <-control> <Voltage gain>
+                    line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
+                    logger.info(f"Generated VCVS line: {line.strip()}")
+                elif type_prefix == 'VCCS':
+                    # VCCS format: G<n> <+node> <-node> <+control> <-control> <transadmitance>
+                    line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
+                    logger.info(f"Generated VCCS line: {line.strip()}")
+                elif type_prefix == 'CCVS':
+                    # VCVS format: E<n> <+node> <-node> <+control> <-control> <transimpedance>
+                    line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
+                    logger.info(f"Generated CCVS line: {line.strip()}")
+                elif type_prefix == 'CCCS':
+                    # VCCS format: G<n> <+node> <-node> <+control> <Current gain>
+                    line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
+                    logger.info(f"Generated CCCS line: {line.strip()}")
                 else:
                     line = f"{id_} {node1} {node2} {value}\n"
+                
                 cctt += line
+                logger.info(f"Added to netlist: {line.strip()}")
 
-        cctt += f"Vg {groundNode} 0 0\n"
+        # cctt += f"Vg {groundNode} 0 0\n"
 
         # Write netlist to file
         netlist_filename = 'netlist.txt'

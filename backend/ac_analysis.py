@@ -1,8 +1,7 @@
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import figure, show, xlabel, ylabel, legend, subplots, savefig
 from lcapy import *
-from sympy import *
-import cmath
+from sympy import sympify, pi, I
 from cmath import polar
 import numpy as np
 import logging
@@ -15,9 +14,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def preprocess_netlist(netlist_string):
-    """
-    Converts wire definitions (e.g., W1 0 5) to 0-ohm resistors (e.g., RW1 0 5 0)
-    """
     lines = netlist_string.strip().splitlines()
     processed = []
 
@@ -25,26 +21,31 @@ def preprocess_netlist(netlist_string):
         tokens = line.split()
         if len(tokens) == 3 and tokens[0].startswith('W'):
             name, n1, n2 = tokens
-            # Convert to resistor with 0 Ohm
-            processed.append(f'R{name} {n1} {n2} 0')
+            processed.append(f'R{name} {n1} {n2} 0.000001')
         else:
             processed.append(line)
 
     return '\n'.join(processed)
 
-def run_ac_analysis(netlist_filename='netlist.txt'):
+def evaluate_complex_expression(expression, omega_val):
     try:
-        # Read the netlist string from the file
+        expr = sympify(expression.replace('j', 'I'))
+        result = expr.subs({'omega_0': omega_val, 'pi': pi, 'I': I}).evalf()
+        logger.info(f"Successfully evaluated: {expression} → {result}")
+        return complex(result)
+    except Exception as e:
+        logger.warning(f"Failed to evaluate: {expression} → {e}")
+        return None
+
+def run_ac_analysis(netlist_filename='netlist.txt', freq=1000):  # freq in Hz
+    try:
         with open(netlist_filename, 'r') as file:
             netlist_string = file.read()
-        
-        logger.info("Original netlist:\n%s", netlist_string)
 
-        # Preprocess the netlist to handle wires
+        logger.info("Original netlist:\n%s", netlist_string)
         netlist_string = preprocess_netlist(netlist_string)
         logger.info("Processed netlist:\n%s", netlist_string)
 
-        # Define the circuit with the read netlist
         try:
             cct = Circuit(netlist_string)
             logger.info("Circuit created successfully")
@@ -52,117 +53,98 @@ def run_ac_analysis(netlist_filename='netlist.txt'):
             logger.error(f"Error creating circuit: {e}")
             return {}, {}
 
-        # Perform AC analysis
         try:
             cct_ac = cct.ac()
             logger.info("AC analysis completed")
+            logger.info(f"AC analysis results: {cct_ac}")
         except Exception as e:
             logger.error(f"Error during AC analysis: {e}")
             return {}, {}
 
-        # Helper function to evaluate complex expressions
-        def evaluate_complex_expression(expression):
-            safe_dict = {
-                'sqrt': cmath.sqrt,
-                'exp': cmath.exp,
-                'atan': cmath.atan,
-                'pi': cmath.pi,
-                'I': 1j,  # Use I for imaginary unit
-            }
-            try:
-                # Clean up the expression and evaluate
-                expr = str(expression).replace('j', 'I')
-                result = eval(expr, {"__builtins__": None}, safe_dict)
-                logger.info(f"Successfully evaluated expression '{expr}' = {result}")
-                return complex(result)
-            except Exception as e:
-                logger.warning(f"Error evaluating expression '{expression}': {e}")
-                return None
-        
-        # Lists for storing phasor data and component labels
+        omega_val = 2 * np.pi * freq  # omega_0 = 2πf
+
         v_phasors = []
         v_labels = []
         i_phasors = []
         i_labels = []
 
-        # Helper function to extract and store phasors
         def add_phasors(component):
             try:
-                # Voltage phasor
-                v_phasor_expr = str(cct_ac[component].v.phasor())
-                logger.info(f"Voltage phasor expression for {component}: {v_phasor_expr}")
-                v_phasor = evaluate_complex_expression(v_phasor_expr)
-                if v_phasor is not None:
-                    magnitude, angle = polar(v_phasor)
-                    v_phasors.append((magnitude, angle))
+                v_expr = str(cct_ac[component].v.phasor())
+                logger.info(f"Voltage phasor expression for {component}: {v_expr}")
+                v_phasor = evaluate_complex_expression(v_expr, omega_val)
+                if v_phasor:
+                    mag, ang = polar(v_phasor)
+                    v_phasors.append((mag, ang))
                     v_labels.append(f'V_{component}')
-                    logger.info(f"Added voltage phasor for {component}: {magnitude}∠{np.degrees(angle)}°")
-                
-                # Current phasor
-                i_phasor_expr = str(cct_ac[component].i.phasor())
-                logger.info(f"Current phasor expression for {component}: {i_phasor_expr}")
-                i_phasor = evaluate_complex_expression(i_phasor_expr)
-                if i_phasor is not None:
-                    magnitude, angle = polar(i_phasor)
-                    i_phasors.append((magnitude, angle))
-                    i_labels.append(f'I_{component}')
-                    logger.info(f"Added current phasor for {component}: {magnitude}∠{np.degrees(angle)}°")
-            except Exception as e:
-                logger.error(f"Error processing component {component}: {e}")
+                    logger.info(f"V_{component}: {mag:.2f}∠{np.degrees(ang):.0f}°")
 
-        # Only include linear components for AC analysis
+                i_expr = str(cct_ac[component].i.phasor())
+                logger.info(f"Current phasor expression for {component}: {i_expr}")
+                i_phasor = evaluate_complex_expression(i_expr, omega_val)
+                if i_phasor:
+                    mag, ang = polar(i_phasor)
+                    i_phasors.append((mag, ang))
+                    i_labels.append(f'I_{component}')
+                    logger.info(f"I_{component}: {mag:.2f}∠{np.degrees(ang):.0f}°")
+            except Exception as e:
+                logger.error(f"Error processing {component}: {e}")
+
         linear_components = ['A', 'V', 'R', 'L', 'C', 'ACSource']
-        
-        for component_type_prefix in linear_components:
+        for prefix in linear_components:
             index = 1
             while True:
-                component_name = f"{component_type_prefix}{index}"
-                if component_name not in cct_ac.elements:
+                name = f"{prefix}{index}"
+                if name not in cct_ac.elements:
                     break
-                logger.info(f"Processing component: {component_name}")
-                add_phasors(component_name)
+                logger.info(f"Processing component: {name}")
+                add_phasors(name)
                 index += 1
 
-        # Plotting on polar projection for voltages
-        fig = plt.figure()
+        # --- Plotting Voltages ---
+        fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111, polar=True)
-        
         res_voltages = {}
-        res_current = {}
-        
-        for (magnitude, angle), label in zip(v_phasors, v_labels):
-            annotation = f'{label}: {magnitude:.2f}∠{np.degrees(angle):.0f}°'
-            logger.info(annotation)
-            res_voltages[label] = f'{magnitude:.2f}∠{np.degrees(angle):.0f}°'
-            ax.plot([0, angle], [0, magnitude], label=annotation)
 
-        # Enhance the voltage plot
+        max_v_mag = max((m for m, _ in v_phasors), default=1)
+
+        for (mag, ang), label in zip(v_phasors, v_labels):
+            norm_mag = mag / max_v_mag  # normalize for visibility
+            text = f'{label}: {mag:.6f}∠{np.degrees(ang):.0f}°'
+            ax.plot([0, ang], [0, norm_mag], marker='o', label=text)
+            res_voltages[label] = text.split(": ")[1]
+
         ax.set_yticklabels([])
-        ax.legend(bbox_to_anchor=(0,0,1,1), bbox_transform=fig.transFigure)
-        plt.savefig('static/ac_analysis_voltage_phasor.png')
+        ax.set_rgrids([0.2, 0.5, 0.8, 1.0], angle=45)
+        ax.legend(bbox_to_anchor=(1.1, 1.05))
+        plt.title("Voltage Phasor", fontsize=14, fontweight='bold')
+        plt.savefig('static/ac_analysis_voltage_phasor.png', bbox_inches='tight')
         plt.close()
 
-        # Plotting on polar projection for currents
-        fig = plt.figure()
+        # --- Plotting Currents ---
+        fig = plt.figure(figsize=(8, 6))
         ay = fig.add_subplot(111, polar=True)
-        
-        for (magnitude, angle), label in zip(i_phasors, i_labels):
-            annotation = f'{label}: {magnitude:.2f}∠{np.degrees(angle):.0f}°'
-            logger.info(annotation)
-            res_current[label] = f'{magnitude:.2f}∠{np.degrees(angle):.0f}°'
-            
-            ay.plot([0, angle], [0, magnitude], label=annotation)
+        res_currents = {}
 
-        # Enhance the current plot
+        max_i_mag = max((m for m, _ in i_phasors), default=1)
+
+        for (mag, ang), label in zip(i_phasors, i_labels):
+            norm_mag = mag / max_i_mag  # normalize for visibility
+            text = f'{label}: {mag:.6f}∠{np.degrees(ang):.0f}°'
+            ay.plot([0, ang], [0, norm_mag], marker='o', label=text)
+            res_currents[label] = text.split(": ")[1]
+
         ay.set_yticklabels([])
-        ay.legend(bbox_to_anchor=(0,0,1,1), bbox_transform=fig.transFigure)
-        plt.savefig('static/ac_analysis_current_phasor.png')
+        ay.set_rgrids([0.2, 0.5, 0.8, 1.0], angle=45)
+        ay.legend(bbox_to_anchor=(1.1, 1.05))
+        plt.title("Current Phasor", fontsize=14, fontweight='bold')
+        plt.savefig('static/ac_analysis_current_phasor.png', bbox_inches='tight')
         plt.close()
 
         logger.info("Final results - Voltages: %s", res_voltages)
-        logger.info("Final results - Currents: %s", res_current)
-        
-        return res_voltages, res_current
+        logger.info("Final results - Currents: %s", res_currents)
+
+        return res_voltages, res_currents
 
     except Exception as e:
         logger.error(f"Unexpected error in AC analysis: {e}")
