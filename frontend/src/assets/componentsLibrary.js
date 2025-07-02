@@ -1336,5 +1336,82 @@ CCCS: {
 
     return currentSourceGroup;
   }
+},
+CS: {
+    id: "18",
+    name: "CS",
+    component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const circleRadius = 12;
+        const arrowHeadSize = 4;
+
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+
+        const currentSourceGroup = svg.append("g")
+            .attr("id", lineId)
+            .style("cursor", "pointer")
+            .on("click", () => handleLineClick(lineId))
+            .on("dblclick", (event) => {
+                event.stopPropagation();
+                handleLineDoubleClick(lineId, "dependent_current");
+            })
+            .on("mouseover", (event) => showLineCurrent(event, lineId))
+            .on("mouseout", () => hideLineCurrent());
+
+        const rotatedGroup = currentSourceGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+
+        // Draw connecting lines
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -circleRadius)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        rotatedGroup.append("line")
+            .attr("x1", circleRadius)
+            .attr("y1", 0)
+            .attr("x2", halfLength)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Circle shape (replaces diamond)
+        rotatedGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 0)
+            .attr("r", circleRadius)
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Arrow inside the rotated group (rotates with the component)
+        const arrowGroup = rotatedGroup.append("g");
+
+        // Arrow shaft
+        arrowGroup.append("line")
+            .attr("x1", -8)
+            .attr("y1", 0)
+            .attr("x2", 8)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Arrow head
+        arrowGroup.append("polygon")
+            .attr("points", [
+                [8, 0],
+                [8 - arrowHeadSize, -arrowHeadSize],
+                [8 - arrowHeadSize, arrowHeadSize]
+            ].map(d => d.join(",")).join(" "))
+            .attr("fill", "black");
+
+        return currentSourceGroup;
+    }
 }
 }

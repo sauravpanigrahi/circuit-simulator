@@ -279,6 +279,23 @@ const CircuitCanvas = () => {
         });
       }
       return;
+    }else if(selectedComponent=== "AC"){
+      const voltage= typeof value === 'object' ? value.value : value;
+      const phase= typeof value==='object'? value.phase: '';
+      const volt = prompt(`Enter  AC Voltage for ${lineId}:`, voltage || '0');
+      const phase1 = prompt("Enter Phase angle:", phase);
+      if (volt !== null && phase1 !== null) {
+        setValMap((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(lineId, {
+            value: volt,
+            phase: phase1,
+            
+          });
+          return newMap;
+        });
+      }
+      return;
     }else{
     const currentValue = typeof value === 'object' ? value.value : value;
     const newValue = prompt(`Update the value for component ${lineId}:`, currentValue);

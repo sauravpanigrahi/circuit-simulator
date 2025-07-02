@@ -60,6 +60,7 @@ let temp = {};
       dependentnode1:null,
       dependentnode2:null,
       Vcontrol:null,
+      phase:null,
     };
 
     switch (type) {
@@ -67,7 +68,12 @@ let temp = {};
         sourceCnt++;
         component.type = 'AC Source';
         component.id = `V${sourceCnt}`;
-        component.value = `${value} `;
+        if (typeof value === 'object') {
+          component.value = value.value;
+          component.phase = value.phase
+        } else {
+          component.value = `${value}`;
+        }
         temp[key] = `V${sourceCnt}`;
         break;
       case "L":
@@ -201,6 +207,13 @@ let temp = {};
             component.value = `${value}`;
           }
           temp[key] = `F${components.filter(comp => comp.type === 'CCCS').length + 1}`;
+          break;
+
+        case "CS":
+          component.type = 'Current Source';
+          component.id = `I${components.filter(comp => comp.type === 'Current Source').length + 1}`;
+          component.value = `${value}`;
+          temp[key] = `I${components.filter(comp => comp.type === 'Current Source').length + 1}`;
           break;
       default:
         component.type = 'Generic';

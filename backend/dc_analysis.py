@@ -42,12 +42,12 @@ def preprocess_netlist(netlist_string):
                 # Handle voltage sources
                 v_name, n1, n2 = tokens[0], tokens[1], tokens[2]
                 if len(tokens) > 3:
-                    # Check if it's an AC source with sin expression
+                    # Check if it's an ACP Source with sin expression
                     if 'sin' in ' '.join(tokens[3:]):
                         # Extract the amplitude from sin expression
                         value = tokens[4] if len(tokens) > 4 else '0'
                         processed.append(f'{v_name} {n1} {n2} {value}')
-                        logger.info(f"Converted AC source {v_name} to DC source with value {value}")
+                        logger.info(f"Converted ACP Source {v_name} to DC source with value {value}")
                     else:
                         # Regular voltage source
                         value = tokens[3]

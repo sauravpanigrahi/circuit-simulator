@@ -36,7 +36,7 @@ def preprocess_netlist(netlist_string):
                 if 'AC' in tokens[3].upper():
                     amplitude = tokens[4] if len(tokens) > 4 else '1'
                     processed.append(f'{name} {n1} {n2} step {amplitude}')
-                    logger.info(f"Converted AC source {name} to step source")
+                    logger.info(f"Converted ACP Source {name} to step source")
                 else:
                     processed.append(line)
             else:

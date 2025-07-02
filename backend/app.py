@@ -244,6 +244,7 @@ def simulation():
             depnode3 = ''
             depnode4 = ''
             depVoltage=''
+            phase=''
             # Handle value extraction properly
             raw_value = comp.get('value', '')
             
@@ -256,6 +257,7 @@ def simulation():
                 depnode3 = raw_value.get('dependentNode1', '')
                 depnode4 = raw_value.get('dependentNode2', '')
                 depVoltage=raw_value.get('Vcontrol','')
+                phase=raw_value.get('phase','')
                 logger.info(f"Extracted from dict - value: {value}, depnode3: {depnode3}, depnode4: {depnode4}")
             else:
                 # This is a regular component
@@ -264,18 +266,18 @@ def simulation():
                 depnode3 = comp.get('dependentnode1', '')
                 depnode4 = comp.get('dependentnode2', '')
                 depVoltage=comp.get('Vcontrol','')
-            
+                phase=comp.get('phase','')
             # Ensure value is a string/number, not an object
             if isinstance(value, dict):
                 logger.error(f"Value is still a dict for component {id_}: {value}")
                 value = str(value)  # Fallback to string representation
             
             # Generate the netlist line based on component type
-            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS', 'Generic']:
+            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS','Current Source' ,'Generic']:
                 if type_prefix == 'DC Source':
                     line = f"{id_} {node2} {node1} {value}\n"
                 elif type_prefix == 'AC Source':
-                    line = f"{id_} {node1} {node2} AC {value}\n"    
+                    line = f"{id_} {node1} {node2} AC {value} {phase}\n"    
                 elif type_prefix == 'VCVS':
                     # VCVS format: E<n> <+node> <-node> <+control> <-control> <Voltage gain>
                     line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
