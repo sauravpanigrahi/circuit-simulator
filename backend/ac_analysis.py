@@ -59,7 +59,83 @@ def evaluate_complex_expression(expression, omega_val):
         logger.warning(f"Failed to evaluate: {expression} → {e}")
         return None
 
-def run_ac_analysis(netlist_filename='netlist.txt', freq=1000):
+def plot_time_domain(phasors, labels, title, filename, freq):
+    """
+    Plot time domain representation of phasors with component-specific line styles
+    and cosine expressions in the legend.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Time vector for two complete cycles
+    T = 1.0 / freq
+    t = np.linspace(0, 2 * T, 1000)
+    omega = 2 * np.pi * freq
+
+    # Define line styles for known component types
+    line_styles = {
+        'R': '-',     # Solid
+        'L': ':',     # Dotted
+        'C': '--',    # Dashed
+        'V': '-.',    # Dash-dot
+    }
+
+    colors = plt.cm.tab10(np.linspace(0, 1, len(phasors)))
+
+    for i, ((mag, phase), label) in enumerate(zip(phasors, labels)):
+        signal = mag * np.cos(omega * t + phase)
+
+        # Extract component type: R, L, C, V
+        comp_type = label.split('_')[1][0] if '_' in label else label[0]
+        linestyle = line_styles.get(comp_type, '-')  # fallback to solid
+
+        # Build readable cosine expression
+        deg_phase = np.degrees(phase)
+        expression = f'{mag:.2f}·cos(2π·{freq}·t + {deg_phase:.1f}°)'
+
+        # Plot the signal
+        ax.plot(
+            t * 1000, signal, 
+            label=f'{label}: {expression}', 
+            color=colors[i], 
+            linewidth=2, 
+            linestyle=linestyle
+        )
+
+        # Optional: annotate the signal inline (adjust index/position if needed)
+        if len(t) > 150:
+            offset = 0.15 * mag  # or any value depending on signal range
+
+            ax.annotate(expression,
+                        xy=(t[160] * 1000, signal[160]),
+                        xytext=(t[160] * 1000, signal[160] + offset),  # shift upward
+                        textcoords='data',
+                        fontsize=10,
+                        color=colors[i],
+                        ha='center',
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=colors[i], lw=1, alpha=0.8),
+                        arrowprops=dict(arrowstyle="->", color=colors[i], lw=1, alpha=0.6))
+
+    # Axes labels and title
+    ax.set_xlabel('Time (ms)', fontsize=12)
+    ax.set_ylabel('Amplitude', fontsize=12)
+    ax.set_title(f'{title} - Time Domain Representation', fontsize=14, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+
+    # Period markers
+    period_ms = T * 1000
+    for i in range(3):
+        ax.axvline(x=i * period_ms, color='red', linestyle='--', alpha=0.5)
+
+    plt.tight_layout()
+    plt.savefig(filename, bbox_inches='tight', dpi=300)
+    plt.close()
+
+
+def run_ac_analysis(freq, netlist_filename='netlist.txt'):
     try:
         with open(netlist_filename, 'r') as file:
             netlist_string = file.read()
@@ -119,6 +195,7 @@ def run_ac_analysis(netlist_filename='netlist.txt', freq=1000):
                 add_phasors(name)
                 index += 1
 
+        # Plot phasor diagrams (original code)
         fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111, polar=True)
         res_voltages = {}
@@ -133,7 +210,7 @@ def run_ac_analysis(netlist_filename='netlist.txt', freq=1000):
         ax.set_yticklabels([])
         ax.set_rgrids([0.2, 0.5, 0.8, 1.0], angle=45)
         ax.legend(bbox_to_anchor=(1.1, 1.05))
-        plt.title("Voltage Phasor", fontsize=14, fontweight='bold')
+        plt.title("Voltage Phasor Diagram", fontsize=14, fontweight='bold')
         plt.savefig('static/ac_analysis_voltage_phasor.png', bbox_inches='tight')
         plt.close()
 
@@ -151,9 +228,64 @@ def run_ac_analysis(netlist_filename='netlist.txt', freq=1000):
         ay.set_yticklabels([])
         ay.set_rgrids([0.2, 0.5, 0.8, 1.0], angle=45)
         ay.legend(bbox_to_anchor=(1.1, 1.05))
-        plt.title("Current Phasor", fontsize=14, fontweight='bold')
+        plt.title("Current Phasor Diagram", fontsize=14, fontweight='bold')
         plt.savefig('static/ac_analysis_current_phasor.png', bbox_inches='tight')
         plt.close()
+
+        # Plot time domain representations
+        if v_phasors:
+            plot_time_domain(v_phasors, v_labels, "Voltage", 
+                           'static/ac_analysis_voltage_time_domain.png', freq)
+            logger.info("Voltage time domain plot saved")
+
+        if i_phasors:
+            plot_time_domain(i_phasors, i_labels, "Current", 
+                           'static/ac_analysis_current_time_domain.png', freq)
+            logger.info("Current time domain plot saved")
+
+        # Combined time domain plot
+        if v_phasors and i_phasors:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            
+            T = 1.0 / freq
+            t = np.linspace(0, 2*T, 1000)
+            omega = 2 * np.pi * freq
+            
+            # Voltage subplot
+            colors_v = plt.cm.tab10(np.linspace(0, 1, len(v_phasors)))
+            for i, ((mag, phase), label) in enumerate(zip(v_phasors, v_labels)):
+                signal = mag * np.cos(omega * t + phase)
+                ax1.plot(t * 1000, signal, label=f'{label}: {mag:.4f}∠{np.degrees(phase):.1f}°', 
+                        color=colors_v[i], linewidth=2)
+            
+            ax1.set_ylabel('Voltage (V)', fontsize=12)
+            ax1.set_title('Voltage Time Domain', fontsize=12, fontweight='bold')
+            ax1.grid(True, alpha=0.3)
+            ax1.legend()
+            
+            # Current subplot
+            colors_i = plt.cm.tab10(np.linspace(0, 1, len(i_phasors)))
+            for i, ((mag, phase), label) in enumerate(zip(i_phasors, i_labels)):
+                signal = mag * np.cos(omega * t + phase)
+                ax2.plot(t * 1000, signal, label=f'{label}: {mag:.4f}∠{np.degrees(phase):.1f}°', 
+                        color=colors_i[i], linewidth=2)
+            
+            ax2.set_xlabel('Time (ms)', fontsize=12)
+            ax2.set_ylabel('Current (A)', fontsize=12)
+            ax2.set_title('Current Time Domain', fontsize=12, fontweight='bold')
+            ax2.grid(True, alpha=0.3)
+            ax2.legend()
+            
+            # Add period markers
+            period_ms = T * 1000
+            for i in range(3):
+                ax1.axvline(x=i*period_ms, color='red', linestyle='--', alpha=0.5)
+                ax2.axvline(x=i*period_ms, color='red', linestyle='--', alpha=0.5)
+            
+            plt.tight_layout()
+            plt.savefig('static/ac_analysis_combined_time_domain.png', bbox_inches='tight', dpi=300)
+            plt.close()
+            logger.info("Combined time domain plot saved")
 
         logger.info("Final results - Voltages: %s", res_voltages)
         logger.info("Final results - Currents: %s", res_currents)
@@ -163,3 +295,10 @@ def run_ac_analysis(netlist_filename='netlist.txt', freq=1000):
     except Exception as e:
         logger.error(f"Unexpected error in AC analysis: {e}")
         return {}, {}
+
+# Example usage
+if __name__ == "__main__":
+    # Run analysis with existing netlist file
+    voltages, currents = run_ac_analysis(freq=1000)
+    print("Voltages:", voltages)
+    print("Currents:", currents)

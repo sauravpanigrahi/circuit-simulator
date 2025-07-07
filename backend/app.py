@@ -53,14 +53,37 @@ def validate_component(component):
     required_fields = ['type', 'id', 'node', 'value']
     if not all(field in component for field in required_fields):
         return False
-        
-    # Validate value is a valid number
-    try:
-        float(component['value'])
-        return True
-    except (ValueError, TypeError):
-        logger.error(f"Invalid value in component {component['id']}: {component['value']}")
-        return False
+    
+    comp_type = component['type']
+    value = component['value']
+    
+    # Handle AC sources with dictionary values (magnitude and phase)
+    if comp_type in ['AC', 'AC Source']:
+        if isinstance(value, dict):
+            # Check if both 'value' and 'phase' are present and valid
+            if 'value' in value and 'phase' in value:
+                try:
+                    float(value['value'])  # Validate magnitude
+                    float(value['phase'])  # Validate phase
+                    return True
+                except (ValueError, TypeError):
+                    logger.error(f"Invalid AC source value/phase in component {component['id']}: {value}")
+                    return False
+            else:
+                logger.error(f"Missing 'value' or 'phase' in AC component {component['id']}: {value}")
+                return False
+        else:
+            logger.error(f"AC source value must be a dictionary in component {component['id']}: {value}")
+            return False
+    
+    # Handle other component types with simple numeric values
+    else:
+        try:
+            float(value)
+            return True
+        except (ValueError, TypeError):
+            logger.error(f"Invalid value in component {component['id']}: {value}")
+            return False
 
 def generate_netlist(circuit_data):
     """
@@ -88,7 +111,7 @@ def generate_netlist(circuit_data):
             comp_type = component['type']
             nodes = component['node']
             value = component['value']
-            
+           
             # Convert node values to strings and handle '?' nodes
             node1 = str(nodes[0]) if nodes[0] != '?' else '0'
             node2 = str(nodes[1]) if nodes[1] != '?' else '0'
@@ -111,10 +134,19 @@ def generate_netlist(circuit_data):
                     circuit.add(f'L{unique_id} {node1} {node2} {float(value)}')
                 elif comp_type == 'V' or comp_type == 'VoltageSource':
                     circuit.add(f'V{unique_id} {node1} {node2} {float(value)}')
-                elif comp_type == 'ACSource':
-                    # AC source is a voltage source with AC specification including frequency
-                    frequency = float(component.get('frequency', 50))  # Default to 50Hz if not specified
-                    circuit.add(f'V{unique_id} {node1} {node2} sin 0 {float(value)} {frequency} 0 0 0')
+                elif comp_type == 'AC' or comp_type == 'AC Source':
+                    # Handle AC source with dictionary value containing magnitude and phase
+                    if isinstance(value, dict) and 'value' in value and 'phase' in value:
+                        try:
+                            magnitude = float(value['value'])
+                            phase = float(value['phase'])
+                            circuit.add(f"V{unique_id} {node1} {node2} AC {magnitude} {phase}")
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"Non-numeric value/phase in AC component {component['id']}: {value}")
+                            continue
+                    else:
+                        logger.error(f"Invalid AC source value format in component {component['id']}: {value}")
+                        continue
                 elif comp_type == 'I' or comp_type == 'CurrentSource':
                     circuit.add(f'I{unique_id} {node1} {node2} {float(value)}')
                 elif comp_type == 'D' or comp_type == 'Diode':
@@ -147,7 +179,7 @@ def generate_netlist(circuit_data):
                 continue
         
         # Add ground node reference using Lcapy's syntax
-        circuit.add('Vg 0 0 0')
+        # circuit.add('Vg 0 0 0')
         
         # Generate the netlist
         netlist = circuit.netlist()
@@ -231,9 +263,6 @@ def simulation():
             logger.warning("Invalid frequency value, defaulting to 0")
 
         # Process components
-        # Replace the problematic section in your /simulation route with this:
-
-# Process components
         for comp in components:
             type_prefix = comp.get('type', '')
             id_ = comp.get('id', '')
@@ -300,8 +329,6 @@ def simulation():
                 cctt += line
                 logger.info(f"Added to netlist: {line.strip()}")
 
-        # cctt += f"Vg {groundNode} 0 0\n"
-
         # Write netlist to file
         netlist_filename = 'netlist.txt'
         try:
@@ -312,18 +339,6 @@ def simulation():
             logger.error(f"Error writing netlist to file: {str(e)}")
             return jsonify({"error": f"Error writing netlist to file: {str(e)}"}), 500
 
-        # Define image files for each analysis type
-        image_files = {
-            'ac': [
-                ("ac_analysis_voltage_phasor.png", "Voltage Phasor"),
-                ("ac_analysis_current_phasor.png", "Current Phasor")
-            ],
-            'transient': [
-                ("transient_analysis-voltage.png", "Transient Voltage"),
-                ("transient_analysis-current.png", "Transient Current")
-            ]
-        }.get(analysisType, [])
-
         try:
             # Run the appropriate analysis
             if analysisType == "dc":
@@ -332,14 +347,26 @@ def simulation():
                 app.config['IMAGES'] = []
             elif analysisType == "ac":
                 logger.info("Starting AC analysis")
-                node_voltages, current = run_ac_analysis()
-                app.config['IMAGES'] = image_files
+                # Pass frequency to AC analysis if needed
+                logger.info(f"Frequency: {frequency}")
+                node_voltages, current = run_ac_analysis(frequency)
+                # Updated image list for AC analysis with time domain plots
+                app.config['IMAGES'] = [
+                    ("ac_analysis_voltage_phasor.png", "Voltage Phasor Diagram"),
+                    ("ac_analysis_current_phasor.png", "Current Phasor Diagram"),
+                    ("ac_analysis_voltage_time_domain.png", "Voltage Time Domain"),
+                    ("ac_analysis_current_time_domain.png", "Current Time Domain"),
+                    ("ac_analysis_combined_time_domain.png", "Combined Time Domain")
+                ]
             elif analysisType == "transient":
                 logger.info("Starting Transient analysis")
                 run_transient_analysis()
                 node_voltages = {}
                 current = {}
-                app.config['IMAGES'] = image_files
+                app.config['IMAGES'] = [
+                    ("transient_analysis-voltage.png", "Transient Voltage"),
+                    ("transient_analysis-current.png", "Transient Current")
+                ]
             else:
                 logger.error(f"Unsupported analysis type: {analysisType}")
                 raise ValueError(f"Unsupported analysis type: {analysisType}")
@@ -377,10 +404,14 @@ def get_images(analysis_type):
             os.makedirs('static')
             logger.info("Created static directory")
 
+        # Updated image configurations with time domain plots
         image_files = {
             'ac': [
-                ("ac_analysis_voltage_phasor.png", "Voltage Phasor"),
-                ("ac_analysis_current_phasor.png", "Current Phasor")
+                ("ac_analysis_voltage_phasor.png", "Voltage Phasor Diagram"),
+                ("ac_analysis_current_phasor.png", "Current Phasor Diagram"),
+                ("ac_analysis_voltage_time_domain.png", "Voltage Time Domain"),
+                ("ac_analysis_current_time_domain.png", "Current Time Domain"),
+                # ("ac_analysis_combined_time_domain.png", "Combined Time Domain")
             ],
             'transient': [
                 ("transient_analysis-voltage.png", "Transient Voltage"),
@@ -399,7 +430,8 @@ def get_images(analysis_type):
             if os.path.exists(file_path):
                 existing_files.append({
                     "url": f"static/{filename}",
-                    "description": description
+                    "description": description,
+                    "filename": filename
                 })
                 logger.info(f"Found image file: {filename}")
             else:
@@ -415,7 +447,15 @@ def get_images(analysis_type):
         logger.error(f"Error getting images: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/static/<filename>')
+def serve_static(filename):
+    """Serve static files (images) with proper headers"""
+    try:
+        return send_from_directory('static', filename)
+    except Exception as e:
+        logger.error(f"Error serving static file {filename}: {str(e)}")
+        return jsonify({"error": f"File not found: {filename}"}), 404
+
 if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")
     app.run(host="0.0.0.0", port=port, debug=True)
-

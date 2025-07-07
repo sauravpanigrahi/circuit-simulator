@@ -196,7 +196,7 @@ export const components = {
                 .attr("font-family", "Arial")
                 .attr("fill", "black")
                 .attr("transform", `rotate(${-angle})`)
-                .text("+");
+                .text("-");
             
             rotatedGroup.append("text")
                 .attr("x", plateGap/2 + 15)
@@ -206,7 +206,7 @@ export const components = {
                 .attr("font-family", "Arial")
                 .attr("fill", "black")
                 .attr("transform", `rotate(${-angle})`)
-                .text("-");
+                .text("+");
             
             return capacitorGroup;
         }
