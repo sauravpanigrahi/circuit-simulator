@@ -2,7 +2,7 @@ import React from "react";
 import * as d3 from "d3";
 import { components } from "../assets/componentsLibrary";
 import { useMyContext } from "../contextApi/MyContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./CircuitCanvas.css";
 import { useNavigate } from "react-router-dom";
 
@@ -21,9 +21,14 @@ const CircuitCanvas = () => {
     setSelectedNodes,
     updatedNodes,
     sendSimulationData,
+    sendparameterData,
     viewSimulation,
     analysisType,
     setAnalysisType,
+    parameterType,
+    setparameterType,
+    parametervalue,
+    setparametervalue,
     frequency,
     setFrequency,
     simData,
@@ -38,6 +43,9 @@ const CircuitCanvas = () => {
   const [lineCurrentPos, setLineCurrentPos] = useState({ x: 0, y: 0 });
   const [isLineCurrentVisible, setLineCurrentVisible] = useState(false);
   const [LineCurrentId, setLineCurrentDotId] = useState("");
+  const [parameterResults, setParameterResults] = useState(null);
+  const [showParameterResults, setShowParameterResults] = useState(false);
+  const[complexform,setcomplexform]=useState(false)
   const svgRef = React.createRef();
   const numRows = 17;
   const numCols = 20;
@@ -45,6 +53,13 @@ const CircuitCanvas = () => {
   const gap = 40;
   const [netlist, setNetlist] = useState("");
   const [nextNodeNumber, setNextNodeNumber] = useState(0);
+
+  useEffect(() => {
+    // console.log('parametervalue1:', parametervalue);
+    if (parametervalue && parametervalue.parameters && parametervalue.parameters.numeric) {
+      setShowParameterResults(true);
+    }
+  }, [parametervalue]);
 
   const handleDotClick = (dotId) => {
     const assignNodeNumber = (id) => {
@@ -410,6 +425,179 @@ const CircuitCanvas = () => {
       return `${absoluteVoltage.toExponential(3)} V`;
     }
   };
+  const formatComplexNumber = (complexNum) => {
+    if (typeof complexNum === 'number') {
+      return complexNum.toFixed(3);
+    }
+    if (typeof complexNum === 'object' && complexNum !== null) {
+      const real = parseFloat(complexNum.real || complexNum.re || 0);
+      const imag = parseFloat(complexNum.imag || complexNum.im || 0);
+      
+      if (Math.abs(imag) < 1e-10) {
+        return real.toFixed(3);
+      }
+      const sign = imag >= 0 ? '+' : '';
+      return `${real.toFixed(3)}${sign}${imag.toFixed(3)}j`;
+    }
+    return complexNum?.toString() || '0';
+  };
+
+  const renderZParameterMatrix = () => {
+    if (!parametervalue || !parametervalue.parameters || !parametervalue.parameters.numeric) return null;
+    // console.log('parametervalue.parameters.numeric',parametervalue.parameters.numeric)
+    const { Z11, Z12, Z21, Z22 } = parametervalue.parameters.numeric;
+    
+    const { Z11: symZ11, Z12: symZ12, Z21: symZ21, Z22: symZ22 } = parametervalue.parameters.symbolic;
+
+    return (
+      <div style={{
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        border: '2px solid #007bff',
+        borderRadius: '10px',
+        marginBottom: '15px'
+      }}>
+        <h4 style={{ color: '#007bff', marginBottom: '10px' }}>
+          Z-Parameter Matrix at {frequency} Hz
+        </h4>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto auto auto',
+          gap: '10px',
+          alignItems: 'center',
+          fontSize: '14px'
+        }}>
+          <div style={{ gridColumn: '1 / 2', textAlign: 'center', fontWeight: 'bold' }}>
+            [Z] =
+          </div>
+          <div style={{
+            gridColumn: '2 / 4',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '5px',
+            border: '1px solid #ccc',
+            padding: '10px',
+            backgroundColor: 'white'
+          }}>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {complexform ? formatComplexNumber(Z11) :  Number(symZ11).toFixed(2)}
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {complexform ? formatComplexNumber(Z12) : Number(symZ12).toFixed(2)}
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {complexform ? formatComplexNumber(Z21) :  Number(symZ21).toFixed(2)}
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {complexform ? formatComplexNumber(Z22) :  Number(symZ22).toFixed(2)}
+            </div>
+          </div>
+        </div>
+        
+        <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
+          <div>Z11: Input impedance at port 1</div>
+          <div>Z12: Transfer impedance (port 1 to 2)</div>
+          <div>Z21: Transfer impedance (port 2 to 1)</div>
+          <div>Z22: Input impedance at port 2</div>
+        </div>
+
+        {Z12 && Z21 && Math.abs(parseFloat(Z12) - parseFloat(Z21)) < 1e-6 && (
+          <div style={{
+            marginTop: '10px',
+            padding: '5px',
+            backgroundColor: '#d4edda',
+            color: '#155724',
+            borderRadius: '5px',
+            fontSize: '12px'
+          }}>
+            ✓ Network is reciprocal (Z12 = Z21)
+          </div>
+        )}
+      <button className="complex-btn" onClick={()=>setcomplexform(prev=>!prev)}>
+        {complexform?'Normal Form':'Complex form'}
+      </button>
+        <button className="close-btn" onClick={() => setShowParameterResults(false)}>
+          Close
+        </button>
+
+
+      </div>
+    );
+  };
+  const renderYParameterMatrix = () => {
+    if (!parametervalue || !parametervalue.parameters || !parametervalue.parameters.numeric || parameterType !== 'y') return null;
+
+    const { Y11, Y12, Y21, Y22 } = parametervalue.parameters.numeric;
+    
+    return (
+      <div style={{
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        border: '2px solid #28a745',
+        borderRadius: '10px',
+        marginBottom: '15px'
+      }}>
+        <h4 style={{ color: '#28a745', marginBottom: '10px' }}>
+          Y-Parameter Matrix @ {frequency} Hz
+        </h4>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto auto auto',
+          gap: '10px',
+          alignItems: 'center',
+          fontSize: '14px'
+        }}>
+          <div style={{ gridColumn: '1 / 2', textAlign: 'center', fontWeight: 'bold' }}>
+            [Y] =
+          </div>
+          <div style={{
+            gridColumn: '2 / 4',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '5px',
+            border: '1px solid #ccc',
+            padding: '10px',
+            backgroundColor: 'white'
+          }}>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {formatComplexNumber(Y11)} S
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {formatComplexNumber(Y12)} S
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {formatComplexNumber(Y21)} S
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {formatComplexNumber(Y22)} S
+            </div>
+          </div>
+        </div>
+        
+        <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
+          <div>Y11: Input admittance at port 1</div>
+          <div>Y12: Transfer admittance (port 1 to 2)</div>
+          <div>Y21: Transfer admittance (port 2 to 1)</div>
+          <div>Y22: Input admittance at port 2</div>
+        </div>
+
+        <button 
+          onClick={() => setShowParameterResults(false)}
+          style={{
+            marginTop: '10px',
+            padding: '5px 10px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          Close
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -464,7 +652,7 @@ const CircuitCanvas = () => {
               Generate Netlist
             </button>
           </div>
-          <div className="sidebar-section">
+          <div className="sidebar-section" >
             <h3>Simulation</h3>
             <select
               value={analysisType}
@@ -488,8 +676,39 @@ const CircuitCanvas = () => {
               View Results
             </button>
           </div>
+          <div className="sidebar-section">
+            <h3>Parameters</h3>
+            <select 
+            value={parameterType}
+              onChange={(e) => setparameterType(e.target.value)} aria-label="Select Parameter type">
+              <option value="z">Z-parameter</option>
+              <option value="y">Y-parameter</option>
+            </select>
+             <input
+              type="text"
+              id="frequency"
+              name="frequency"
+              placeholder="Frequency"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
+            />
+            <button onClick={sendparameterData}>Evaluate Parameters</button>
+          </div>
+
+        
         </aside>
         <main className="circuit-canvas-area">
+        {showParameterResults && parametervalue && parametervalue.parameters && parametervalue.parameters.numeric && (
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              zIndex: 1000,
+              minWidth: '300px'
+            }}>
+              {parameterType === 'z' ? renderZParameterMatrix() : renderYParameterMatrix()}
+            </div>
+          )}
           <div className="circuit-svg-board">
             <svg ref={svgRef} width={numCols * (2 * dotRadius + gap)} height={numRows * (2 * dotRadius + gap)}>
               {Array.from({ length: numRows }).map((_, row) =>

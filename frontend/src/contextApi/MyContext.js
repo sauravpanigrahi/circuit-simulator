@@ -20,9 +20,9 @@ export const ContextProvider = ({ children }) => {
   const [simData, setSimData] = useState("");
 
   const [analysisType, setAnalysisType] = useState("dc"); // New state for analysis type
-
-  const [frequency, setFrequency] = useState(0);
-
+  const[parameterType,setparameterType]=useState("z")
+  const [frequency, setFrequency] = useState();
+  const[parametervalue,setparametervalue]=useState();
   useEffect(()=>{
     const handleUpdateNodes = ()=>{
       const newMap = new Map()
@@ -346,6 +346,76 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       alert(`Simulation failed: ${error.message}`);
     }
   }
+  const sendparameterData = async () => {
+    try {
+      // Find ground node (node with value 0)
+      let groundNode = null;
+      for (const [key, value] of updatedNodes.entries()) {
+        if (value === 0) {
+          groundNode = key;
+          break;
+        }
+      }
+  
+      // Convert the components array into a JSON string
+      const netstring = JSON.stringify({
+        components: components,
+        groundNode: groundNode ? updatedNodes.get(groundNode) : 1 // Use node 1 as default ground if none specified
+      }, null, 2);
+  
+      const body = { 
+        netList: netstring, 
+        numberNodes: updatedNodes.size,
+        parameterType: parameterType,
+        frequency: parseFloat(frequency) || 0
+      };
+  
+      console.log('Sending parameter data:', body);
+      console.log('Starting fetch request...');
+      
+      const response = await fetch('http://127.0.0.1:8000/parameter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(body),
+      });
+      
+      console.log('Fetch response received:', response);
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('parameter results:', data);
+      setparametervalue(data);
+      console.log("parameter",parametervalue)
+      // if (data.status === 'error') {
+      //   throw new Error(data.error || 'Unknown error occurred during simulation');
+      // }
+      
+      setSimData(data);
+      alert('Parameter Evaluated successfully!');
+      
+    } catch (error) {
+      console.error('=== COMPLETE ERROR DETAILS ===');
+      // console.error('Error:', error);
+      // console.error('Error name:', error.name);
+      // console.error('Error message:', error.message);
+      // console.error('Error stack:', error.stack);
+      // console.error('=============================');
+      alert(`Simulation failed: ${error.message}`);
+    }
+  }
+
+  useEffect(() => {
+    console.log('Context parametervalue (provider):', parametervalue);
+  }, [parametervalue]);
 
   const viewSimulation = () => {
     // For DC analysis, show results in a popup instead of trying to fetch images
@@ -453,10 +523,15 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         setSelectedNodes,
         updatedNodes, 
         setUpdatedNodes,
-        sendSimulationData, // Updated to use the new function name
+        sendSimulationData,
+        sendparameterData, // Updated to use the new function name
         viewSimulation,
         analysisType,
         setAnalysisType, // Allowing components to update the analysis type
+        parameterType,
+        setparameterType,
+        parametervalue,
+        setparametervalue,
         frequency,
         setFrequency,
         simData,

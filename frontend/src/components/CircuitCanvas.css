@@ -19,6 +19,7 @@ body {
   padding: 0 32px;
   z-index: 1001;
   
+  
 }
 .circuit-navbar .brand {
   font-size: 1.6rem;
@@ -54,12 +55,13 @@ body {
   width: 270px;
   background: #fff;
   box-shadow: 2px 0 8px rgba(0,0,0,0.04);
-  padding: 27px 15px 15px 15px;
+  padding: 23px 12px 12px 12px;
   display: flex;
   flex-direction: column;
   /* gap: 0px; */
   z-index: 1000;
   border-radius: 18px;
+  border: 1px solid #7b93a9;
 
 }
 .circuit-sidebar h3 {
@@ -70,6 +72,15 @@ body {
 }
 .circuit-sidebar .sidebar-section {
   margin-bottom: 18px;
+  
+}
+.sidebar-section{
+  
+border: 1px solid #7b93a9;
+padding: 5px;
+border-radius: 15px;
+  /* light blue */
+
 }
 .circuit-sidebar label {
   font-size: 0.98rem;
@@ -208,3 +219,41 @@ body {
     margin: 0 2px;
   }
 } 
+/* Common button styles */
+button.complex-btn,
+button.close-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+}
+
+/* Specific to complex button */
+.complex-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.complex-btn:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+  box-shadow: 0 6px 10px rgba(0, 123, 255, 0.3);
+}
+
+/* Specific to close button */
+.close-btn {
+  background-color: #dc3545;
+  color: white;
+  margin-left: 10px;
+}
+
+.close-btn:hover {
+  background-color: #b02a37;
+  transform: scale(1.05);
+  box-shadow: 0 6px 10px rgba(220, 53, 69, 0.3);
+}

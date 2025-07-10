@@ -145,9 +145,12 @@ const HomePage = () => {
                 </a>
               </li>
               <li className="nav-item ms-2">
-                <button 
+                <button
+                  type="button"
                   className="btn btn-glass text-white rounded-pill px-3"
                   onClick={handleSimulatorClick}
+                  /* Any color string works: '#0dcaf0', 'rgba(0,123,255,0.6)', etc. */
+                  style={{ '--nav-link-custom-color': navLinkColor }}
                 >
                   Launch Simulator
                 </button>

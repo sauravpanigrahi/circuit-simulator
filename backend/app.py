@@ -9,6 +9,7 @@ import re
 from transient_analysis import run_transient_analysis
 from ac_analysis import run_ac_analysis
 from dc_analysis import run_dc_analysis
+from Z_parameter import run_z_parameter
 import os
 from dotenv import load_dotenv
 import logging
@@ -455,6 +456,187 @@ def serve_static(filename):
     except Exception as e:
         logger.error(f"Error serving static file {filename}: {str(e)}")
         return jsonify({"error": f"File not found: {filename}"}), 404
+    
+@app.route('/parameter', methods=['GET', 'POST', 'OPTIONS'])
+def parameter():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        if not request.is_json:
+            logger.warning("Request is not JSON")
+            return jsonify({"error": "Request must be JSON"}), 415
+            
+        ckt_data = request.get_json()
+        if not ckt_data:
+            logger.warning("No JSON data received")
+            return jsonify({"error": "No JSON data received"}), 400
+            
+        netlist_str = ckt_data.get("netList", "")
+        if not netlist_str:
+            logger.warning("Netlist is empty")
+            return jsonify({"error": "Netlist is empty"}), 400
+
+        try:
+            netlist = json.loads(netlist_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in netlist: {str(e)}")
+            return jsonify({"error": f"Invalid JSON in netlist: {str(e)}"}), 400
+
+        components = netlist.get("components", [])
+        if not components:
+            logger.warning("Components are empty")
+            return jsonify({"error": "Components are empty"}), 400
+
+        cctt = ""
+        numberOfNodes = ckt_data.get("numberNodes", 0)
+        parameterType = ckt_data.get("parameterType", "z").lower()
+        groundNode = netlist.get("groundNode")
+
+        try:
+            frequency = float(ckt_data.get("frequency", 0))
+        except (ValueError, TypeError):
+            frequency = 0
+            logger.warning("Invalid frequency value, defaulting to 0")
+
+        # Process components
+        for comp in components:
+            type_prefix = comp.get('type', '')
+            id_ = comp.get('id', '')
+            node1 = comp.get('node1', '')
+            node2 = comp.get('node2', '')
+            
+            # Initialize dependent nodes with empty strings
+            depnode3 = ''
+            depnode4 = ''
+            depVoltage=''
+            phase=''
+            # Handle value extraction properly
+            raw_value = comp.get('value', '')
+            
+            # Debug log to see what we're receiving
+            logger.info(f"Processing component {id_}: type={type_prefix}, raw_value={raw_value}")
+            
+            if isinstance(raw_value, dict):
+                # This is a dependent source with nested structure
+                value = raw_value.get('value', '')
+                depnode3 = raw_value.get('dependentNode1', '')
+                depnode4 = raw_value.get('dependentNode2', '')
+                depVoltage=raw_value.get('Vcontrol','')
+                phase=raw_value.get('phase','')
+                logger.info(f"Extracted from dict - value: {value}, depnode3: {depnode3}, depnode4: {depnode4}")
+            else:
+                # This is a regular component
+                value = raw_value
+                # Try to get dependent nodes from component level (fallback)
+                depnode3 = comp.get('dependentnode1', '')
+                depnode4 = comp.get('dependentnode2', '')
+                depVoltage=comp.get('Vcontrol','')
+                phase=comp.get('phase','')
+            # Ensure value is a string/number, not an object
+            if isinstance(value, dict):
+                logger.error(f"Value is still a dict for component {id_}: {value}")
+                value = str(value)  # Fallback to string representation
+            
+            # Generate the netlist line based on component type
+            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS','Current Source' ,'Generic']:
+                if type_prefix == 'DC Source':
+                    line = f"{id_} {node2} {node1} {value}\n"
+                elif type_prefix == 'AC Source':
+                    line = f"{id_} {node1} {node2} AC {value} {phase}\n"    
+                elif type_prefix == 'VCVS':
+                    # VCVS format: E<n> <+node> <-node> <+control> <-control> <Voltage gain>
+                    line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
+                    logger.info(f"Generated VCVS line: {line.strip()}")
+                elif type_prefix == 'VCCS':
+                    # VCCS format: G<n> <+node> <-node> <+control> <-control> <transadmitance>
+                    line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
+                    logger.info(f"Generated VCCS line: {line.strip()}")
+                elif type_prefix == 'CCVS':
+                    # VCVS format: E<n> <+node> <-node> <+control> <-control> <transimpedance>
+                    line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
+                    logger.info(f"Generated CCVS line: {line.strip()}")
+                elif type_prefix == 'CCCS':
+                    # VCCS format: G<n> <+node> <-node> <+control> <Current gain>
+                    line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
+                    logger.info(f"Generated CCCS line: {line.strip()}")
+                else:
+                    line = f"{id_} {node1} {node2} {value}\n"
+                
+                cctt += line
+                logger.info(f"Added to netlist: {line.strip()}")
+
+        # Write netlist to file
+        netlist_filename = 'netlist.txt'
+        try:
+            with open(netlist_filename, 'w') as file:
+                file.write(cctt)
+            logger.info("Netlist written to file successfully")
+        except Exception as e:
+            logger.error(f"Error writing netlist to file: {str(e)}")
+            return jsonify({"error": f"Error writing netlist to file: {str(e)}"}), 500
+
+        try:
+            
+    # Run the appropriate analysis
+            if parameterType == "z":
+                logger.info("Starting Z-parameter")
+                z_params = run_z_parameter(frequency)
+
+                logger.info("Z-parameter analysis completed successfully")
+                return jsonify({
+                    "parameters": {
+                        "symbolic": z_params["symbolic"],
+                        "numeric": {
+                            "Z11": str(z_params["numeric"]["Z11"]),
+                            "Z12": str(z_params["numeric"]["Z12"]),
+                            "Z21": str(z_params["numeric"]["Z21"]),
+                            "Z22": str(z_params["numeric"]["Z22"])
+                        }
+                    },
+                    "parameter_type": "z",
+                    "status": "success"
+                })
+
+            elif parameterType == "y":
+                logger.info("Starting Y-parameter")
+                logger.info(f"Frequency: {frequency}")
+                y_params = run_y_parameter(frequency)
+
+                logger.info("Y-parameter analysis completed successfully")
+                return jsonify({
+                    "parameters": {
+                        "symbolic": y_params["symbolic"],
+                        "numeric": {
+                            "Y11": str(y_params["numeric"]["Y11"]),
+                            "Y12": str(y_params["numeric"]["Y12"]),
+                            "Y21": str(y_params["numeric"]["Y21"]),
+                            "Y22": str(y_params["numeric"]["Y22"])
+                        }
+                    },
+                    "parameter_type": "y",
+                    "status": "success"
+                })
+
+            else:
+                raise ValueError(f"Unsupported parameter type: {parameterType}")
+
+        except Exception as e:
+            logger.error(f"Error during {parameterType} analysis: {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({
+                "error": f"Error during {parameterType} analysis: {str(e)}",
+                "traceback": traceback.format_exc(),
+                "status": "error"
+            }), 500
+    except Exception as e:
+        logger.error(f"Error during simulation: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "status": "error"
+        }), 500
 
 if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")
