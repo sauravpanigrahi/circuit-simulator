@@ -29,7 +29,10 @@ app = Flask(__name__, static_folder='static')
 # Configure CORS properly
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:3000"],
+        "origins": [
+            "http://localhost:3000",               # dev
+            "https://circuit-sim-e4628.web.app"    # production
+        ],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Accept"],
         "supports_credentials": True,
@@ -190,9 +193,13 @@ def generate_netlist(circuit_data):
     except Exception as e:
         logger.error(f"Error generating netlist: {str(e)}")
         raise
-
-@app.route('/', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/', methods=['GET', 'POST', 'OPTIONS', 'HEAD'])
 def simulate():
+    if request.method in ['GET', 'HEAD']:          # <‑‑ handle both
+        return (
+            "Circuit Simulator API is running. "
+            "POST your JSON netlist to this endpoint."
+        )
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -200,8 +207,10 @@ def simulate():
         return "Circuit Simulator API is running. Please POST your JSON netlist to this endpoint."
     
     try:
-        ckt_data = request.get_json(force=True)
-        logger.info("Received JSON data: %s", ckt_data) 
+        ckt_data = request.get_json(silent=True)
+        if ckt_data is None:
+            return jsonify({"error": "Invalid or missing JSON"}), 400
+
 
         if not ckt_data:
             raise ValueError("No JSON data received")
