@@ -207,7 +207,7 @@ def simulate():
         return "Circuit Simulator API is running. Please POST your JSON netlist to this endpoint."
     
     try:
-        ckt_data = request.get_json(silent=True)
+        ckt_data = request.get_json(force=True)
         if ckt_data is None:
             return jsonify({"error": "Invalid or missing JSON"}), 400
 
@@ -230,8 +230,13 @@ def simulate():
         logger.error("Simulation error: %s\n%s", str(e), traceback.format_exc())
         return jsonify({"error": f"Error during simulation: {str(e)}"}), 500
 
-@app.route('/simulation', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/simulation', methods=['GET', 'POST', 'OPTIONS','HEAD'])
 def simulation():
+    if request.method in ['GET', 'HEAD']:          # <‑‑ handle both
+        return (
+            "Circuit Simulator API is running. "
+            "POST your JSON netlist to this simulation  endpoint."
+        )
     if request.method == 'OPTIONS':
         return '', 200
         
