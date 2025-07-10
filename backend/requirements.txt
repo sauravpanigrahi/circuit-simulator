@@ -5,7 +5,7 @@ matplotlib==3.8.1
 numpy==1.26.4
 python-dotenv==1.0.1
 sympy==1.12
-Gunicorn
+gunicorn==23.0.0
 uvicorn==0.24.0
 fastapi==0.95.2
 pydantic==1.10.13
