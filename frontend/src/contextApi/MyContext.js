@@ -308,7 +308,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       console.log('Sending simulation data:', body);
       console.log('Starting fetch request...');
       
-      const response = await fetch('http://127.0.0.1:8000/simulation', {
+      const response = await fetch('https://circuit-simulator.onrender.com/simulation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -373,7 +373,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       console.log('Sending parameter data:', body);
       console.log('Starting fetch request...');
       
-      const response = await fetch('http://127.0.0.1:8000/parameter', {
+      const response = await fetch('https://circuit-simulator.onrender.com/parameter', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -440,7 +440,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
     }
 
     // For AC and Transient analysis, fetch and display images
-    const apiUrl = `http://127.0.0.1:8000/get-images/${analysisType}`;
+    const apiUrl = `https://circuit-simulator.onrender.com/get-images/${analysisType}`;
 
     fetch(apiUrl)
       .then(response => {
@@ -481,7 +481,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         popup.document.write('<h3>Plots:</h3>');
         data.forEach(item => {
           popup.document.write(`<h4>${item.description}</h4>`);
-          popup.document.write(`<img src="http://127.0.0.1:8000/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
+          popup.document.write(`<img src="https://circuit-simulator.onrender.com/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
         });
 
         popup.document.write('</body></html>');
