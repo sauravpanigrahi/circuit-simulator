@@ -651,7 +651,15 @@ def parameter():
             "traceback": traceback.format_exc(),
             "status": "error"
         }), 500
-
+@app.route('/debug')
+def debug_info():
+    import sys
+    import sympy
+    return {
+        "python_version": sys.version,
+        "sympy_version": sympy.__version__,
+        "environment": "render"
+    }
 if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")
     app.run(host="0.0.0.0", port=port, debug=True)
