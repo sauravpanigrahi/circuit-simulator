@@ -4,6 +4,7 @@ import './homepage.css';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const [animatedStats, setAnimatedStats] = useState({
     components: 0,
@@ -12,6 +13,23 @@ const HomePage = () => {
   });
   const statsRef = useRef(null);
   const [statsAnimated, setStatsAnimated] = useState(false);
+  const [revealedElements, setRevealedElements] = useState(new Set());
+
+  // Dark mode toggle function
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
+  // Apply theme to body
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-theme');
+      document.body.classList.remove('light-theme');
+    } else {
+      document.body.classList.add('light-theme');
+      document.body.classList.remove('dark-theme');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,9 +58,28 @@ const HomePage = () => {
     return () => observer.disconnect();
   }, [statsAnimated]);
 
+  // Scroll reveal effect
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setRevealedElements(prev => new Set(prev).add(entry.target.id));
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    const elements = document.querySelectorAll('.scroll-reveal');
+    elements.forEach(el => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
   const animateStats = () => {
     const stats = [
-      { key: 'components', target:15 },
+      { key: 'components', target: 15 },
       { key: 'analysisTypes', target: 3 },
       { key: 'browserBased', target: 100 }
     ];
@@ -73,38 +110,52 @@ const HomePage = () => {
     navigate('/simulator');
   };
 
-  // Set dynamic CSS variables for color changes
-  const headerGlassBg = headerScrolled ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.1)';
-  const navLinkColor = headerScrolled ? '#333' : 'white';
-  const logoTextColor = headerScrolled ? '#333' : 'white';
-
   return (
-    <div>
+    <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`}>
       {/* Bootstrap CSS */}
       <link 
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" 
         rel="stylesheet" 
       />
       
+      {/* Animated Sine Wave Background */}
+      <div className="sine-wave-background">
+        <svg className="sine-wave" viewBox="0 0 1200 400" preserveAspectRatio="none">
+          <path 
+            className="sine-path"
+            d="M0,200 Q300,100 600,200 T1200,200"
+            fill="none"
+            stroke="rgba(99, 102, 241, 0.1)"
+            strokeWidth="2"
+          />
+          <path 
+            className="sine-path-delayed"
+            d="M0,200 Q300,100 600,200 T1200,200"
+            fill="none"
+            stroke="rgba(139, 92, 246, 0.08)"
+            strokeWidth="2"
+          />
+        </svg>
+      </div>
+
       {/* Header */}
       <nav
-        className={`navbar navbar-expand-lg fixed-top header-glass`}
-        style={{
-          '--header-glass-bg': headerGlassBg,
-        }}
+        className={`navbar navbar-expand-lg fixed-top navbar-dark ${
+          headerScrolled ? 'navbar-scrolled' : 'navbar-transparent'
+        }`}
       >
         <div className="container">
           <a
-            className="navbar-brand logo-pulse logo-text fw-bold fs-3"
+            className="navbar-brand logo-pulse fw-bold fs-3 d-flex align-items-center"
             href="#"
             onClick={(e) => e.preventDefault()}
-            style={{ '--logo-text-color': logoTextColor }}
           >
-            CircuitSim
+            <span className="logo-icon me-2">⚡</span>
+            <span className="logo-text">CircuitSim</span>
           </a>
           
           <button 
-            className="navbar-toggler" 
+            className="navbar-toggler border-0" 
             type="button" 
             data-bs-toggle="collapse" 
             data-bs-target="#navbarNav"
@@ -119,7 +170,6 @@ const HomePage = () => {
                   className="nav-link nav-link-custom" 
                   href="#features" 
                   onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}
-                  style={{ '--nav-link-custom-color': navLinkColor }}
                 >
                   Features
                 </a>
@@ -129,7 +179,6 @@ const HomePage = () => {
                   className="nav-link nav-link-custom" 
                   href="#about" 
                   onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
-                  style={{ '--nav-link-custom-color': navLinkColor }}
                 >
                   About
                 </a>
@@ -139,7 +188,6 @@ const HomePage = () => {
                   className="nav-link nav-link-custom" 
                   href="#contact" 
                   onClick={(e) => { e.preventDefault(); scrollToSection('contact'); }}
-                  style={{ '--nav-link-custom-color': navLinkColor }}
                 >
                   Contact
                 </a>
@@ -147,10 +195,18 @@ const HomePage = () => {
               <li className="nav-item ms-2">
                 <button
                   type="button"
-                  className="btn btn-glass text-white rounded-pill px-3"
+                  className="btn btn-outline-light btn-sm rounded-pill"
+                  onClick={toggleDarkMode}
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDarkMode ? "☀️" : "🌙"}
+                </button>
+              </li>
+              <li className="nav-item ms-2">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-glow shimmer rounded-pill px-4"
                   onClick={handleSimulatorClick}
-                  /* Any color string works: '#0dcaf0', 'rgba(0,123,255,0.6)', etc. */
-                  style={{ '--nav-link-custom-color': navLinkColor }}
                 >
                   Launch Simulator
                 </button>
@@ -161,33 +217,34 @@ const HomePage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="hero-gradient d-flex align-items-center position-relative">
-        <div className="floating-circuits">
-          <div className="floating-circuit">⚡</div>
-          <div className="floating-circuit">🔌</div>
-          <div className="floating-circuit">🔋</div>
-          <div className="floating-circuit">⚙️</div>
-          <div className="floating-circuit">📊</div>
+      <section className="hero-section d-flex align-items-center position-relative min-vh-100">
+        <div className="floating-elements">
+          <div className="floating-element">⚡</div>
+          <div className="floating-element">🔌</div>
+          <div className="floating-element">🔋</div>
+          <div className="floating-element">⚙️</div>
+          <div className="floating-element">📊</div>
+          <div className="floating-element">💡</div>
         </div>
         
-        <div className="container text-center text-white position-relative" style={{ zIndex: 2 }}>
+        <div className="container text-center position-relative" style={{ zIndex: 2 }}>
           <div className="fade-in-up">
-            <h1 className="display-1 fw-bold mb-4" style={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.3)' }}>
+            <h1 className="display-1 fw-bold mb-4 text-gradient">
               Design. Simulate. Analyze.
             </h1>
-            <p className="lead mb-5 mx-auto" style={{ maxWidth: '600px', opacity: 0.9 }}>
+            <p className="lead mb-5 mx-auto text-light opacity-75" style={{ maxWidth: '600px' }}>
               Professional circuit simulation made simple. Build electronic circuits with an intuitive 
               drag-and-drop interface, run SPICE analysis, and visualize results in real-time.
             </p>
             <div className="d-flex gap-3 justify-content-center flex-wrap">
               <button 
-                className="btn btn-gradient text-white btn-lg rounded-pill px-4"
+                className="btn btn-primary btn-glow shimmer btn-lg rounded-pill px-4"
                 onClick={handleSimulatorClick}
               >
                 🚀 Start Designing
               </button>
               <button 
-                className="btn btn-glass text-white btn-lg rounded-pill px-4"
+                className="btn btn-outline-light shimmer btn-lg rounded-pill px-4"
                 onClick={() => scrollToSection('features')}
               >
                 📖 Learn More
@@ -198,42 +255,53 @@ const HomePage = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="stats-gradient text-white py-5" ref={statsRef}>
+      <section className="stats-section py-5" ref={statsRef}>
         <div className="container">
           <div className="row text-center">
             <div className="col-lg-3 col-md-6 mb-4">
-              <h2 className="display-4 text-info fw-bold">
-                {animatedStats.components}+
-              </h2>
-              <p className="lead opacity-75">Electronic Components</p>
+              <div className="stat-card scroll-reveal" id="stat-1">
+                <h2 className="display-4 text-primary fw-bold mb-2">
+                  {animatedStats.components}+
+                </h2>
+                <p className="lead text-light opacity-75">Electronic Components</p>
+              </div>
             </div>
             <div className="col-lg-3 col-md-6 mb-4">
-              <h2 className="display-4 text-info fw-bold">
-                {animatedStats.analysisTypes}
-              </h2>
-              <p className="lead opacity-75">Analysis Types</p>
+              <div className="stat-card scroll-reveal" id="stat-2">
+                <h2 className="display-4 text-primary fw-bold mb-2">
+                  {animatedStats.analysisTypes}
+                </h2>
+                <p className="lead text-light opacity-75">Analysis Types</p>
+              </div>
             </div>
             <div className="col-lg-3 col-md-6 mb-4">
-              <h2 className="display-4 text-info fw-bold">∞</h2>
-              <p className="lead opacity-75">Circuit Possibilities</p>
+              <div className="stat-card scroll-reveal" id="stat-3">
+                <h2 className="display-4 text-primary fw-bold mb-2">∞</h2>
+                <p className="lead text-light opacity-75">Circuit Possibilities</p>
+              </div>
             </div>
             <div className="col-lg-3 col-md-6 mb-4">
-              <h2 className="display-4 text-info fw-bold">
-                {animatedStats.browserBased}%
-              </h2>
-              <p className="lead opacity-75">Browser-Based</p>
+              <div className="stat-card scroll-reveal" id="stat-4">
+                <h2 className="display-4 text-primary fw-bold mb-2">
+                  {animatedStats.browserBased}%
+                </h2>
+                <p className="lead text-light opacity-75">Browser-Based</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-5 bg-light" id="features">
+      <section className="features-section py-5" id="features">
         <div className="container">
           <div className="text-center mb-5">
-            <h2 className="display-4 fw-bold text-dark mb-4">
+            <h2 className="display-4 fw-bold text-light mb-4 scroll-reveal" id="features-title">
               Powerful Features for Circuit Design
             </h2>
+            <p className="lead text-light opacity-75 scroll-reveal" id="features-subtitle">
+              Everything you need to design and analyze electronic circuits
+            </p>
           </div>
           
           <div className="row g-4">
@@ -270,11 +338,11 @@ const HomePage = () => {
               }
             ].map((feature, index) => (
               <div key={index} className="col-lg-4 col-md-6">
-                <div className="card h-100 feature-card border-0 rounded-4">
+                <div className={`feature-card h-100 border-0 rounded-4 scroll-reveal`} id={`feature-${index}`}>
                   <div className="card-body text-center p-4">
-                    <div className="display-1 mb-3">{feature.icon}</div>
-                    <h4 className="card-title fw-bold mb-3">{feature.title}</h4>
-                    <p className="card-text text-muted">{feature.description}</p>
+                    <div className="feature-icon mb-3">{feature.icon}</div>
+                    <h4 className="card-title fw-bold mb-3 text-light">{feature.title}</h4>
+                    <p className="card-text text-light opacity-75">{feature.description}</p>
                   </div>
                 </div>
               </div>
@@ -283,10 +351,110 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-dark text-white text-center py-4">
+      {/* About Section */}
+      <section className="about-section py-5" id="about">
         <div className="container">
-          <p className="mb-0">
+          <div className="row align-items-center">
+            <div className="col-lg-6 mb-4">
+              <div className="about-content scroll-reveal" id="about-content">
+                <h2 className="display-5 fw-bold text-light mb-4">
+                  Built for Engineers and Students
+                </h2>
+                <p className="lead text-light opacity-75 mb-4">
+                  CircuitSim provides a comprehensive platform for electronic circuit design and analysis. 
+                  Whether you're a student learning electronics or a professional engineer, our intuitive 
+                  interface makes circuit simulation accessible to everyone.
+                </p>
+                <div className="d-flex gap-3">
+                  <button 
+                    className="btn btn-primary btn-glow shimmer rounded-pill px-4"
+                    onClick={handleSimulatorClick}
+                  >
+                    Try It Now
+                  </button>
+                  <button 
+                    className="btn btn-outline-light shimmer rounded-pill px-4"
+                    onClick={() => scrollToSection('contact')}
+                  >
+                    Learn More
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="col-lg-6">
+              <div className="about-visual scroll-reveal" id="about-visual">
+                <div className="circuit-preview">
+                  <div className="circuit-grid">
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <div key={i} className="circuit-node"></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section className="contact-section py-5" id="contact">
+        <div className="container">
+          <div className="text-center mb-5">
+            <h2 className="display-4 fw-bold text-light mb-4 scroll-reveal" id="contact-title">
+              Get in Touch
+            </h2>
+            <p className="lead text-light opacity-75 scroll-reveal" id="contact-subtitle">
+              Have questions or suggestions? We'd love to hear from you.
+            </p>
+          </div>
+          <div className="row justify-content-center">
+            <div className="col-lg-8">
+              <div className="contact-card scroll-reveal" id="contact-card">
+                <div className="row g-4">
+                  <div className="col-md-6">
+                    <div className="contact-info">
+                      <h4 className="text-light mb-3">Contact Information</h4>
+                      <p className="text-light opacity-75 mb-2">
+                        <i className="bi bi-envelope me-2"></i>
+                        info@circuitsim.com
+                      </p>
+                      <p className="text-light opacity-75 mb-2">
+                        <i className="bi bi-github me-2"></i>
+                        github.com/circuitsim
+                      </p>
+                      <p className="text-light opacity-75">
+                        <i className="bi bi-globe me-2"></i>
+                        circuitsim.com
+                      </p>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="contact-form">
+                      <h4 className="text-light mb-3">Send us a Message</h4>
+                      <form>
+                        <div className="mb-3">
+                          <input type="email" className="form-control form-control-dark" placeholder="Your email" />
+                        </div>
+                        <div className="mb-3">
+                          <textarea className="form-control form-control-dark" rows="3" placeholder="Your message"></textarea>
+                        </div>
+                        <button type="submit" className="btn btn-primary btn-glow shimmer rounded-pill px-4">
+                          Send Message
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="footer-section text-center py-4">
+        <div className="container">
+          <p className="mb-0 text-light opacity-75">
             &copy; 2025 CircuitSim. Built for engineers, students, and circuit enthusiasts.
           </p>
         </div>

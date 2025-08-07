@@ -2,205 +2,219 @@ from lcapy import Circuit
 import logging
 import sympy as sp
 import numpy as np
+from typing import Dict, Any, Tuple
 
 # Setup logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def preprocess_netlist(netlist_string):
-    """Convert wire elements to small resistors"""
-    lines = netlist_string.strip().splitlines()
-    processed = []
+class ZParameterCalculator:
+    def __init__(self):
+        self.s = sp.Symbol('s', complex=True)
+        self.supported_components = ['R', 'C', 'L', 'V', 'I', 'W']
 
-    for line in lines:
-        tokens = line.split()
-        if len(tokens) == 3 and tokens[0].startswith('W'):
-            name, n1, n2 = tokens
-            processed.append(f'R{name} {n1} {n2} 0.000001')
-        else:
-            processed.append(line)
+    def preprocess_netlist(self, netlist_string: str) -> str:
+        lines = netlist_string.strip().splitlines()
+        processed = []
+        wire_counter = 1
+        existing_names = set()
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            tokens = line.split()
+            if len(tokens) >= 3:
+                existing_names.add(tokens[0])
 
-    return '\n'.join(processed)
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            tokens = line.split()
+            if len(tokens) < 3:
+                logger.warning(f"Line {line_num}: Invalid component definition: {line}")
+                continue
+            component_type = tokens[0][0].upper()
+            if component_type == 'W':
+                name, n1, n2 = tokens[:3]
+                new_name = f'Rwire{wire_counter}'
+                while new_name in existing_names:
+                    wire_counter += 1
+                    new_name = f'Rwire{wire_counter}'
+                processed.append(f'{new_name} {n1} {n2} 1e-12')
+                existing_names.add(new_name)
+                wire_counter += 1
+                logger.info(f"Converted wire {name} to small resistor {new_name}")
+            elif component_type in self.supported_components:
+                processed.append(line)
+            else:
+                logger.warning(f"Line {line_num}: Unsupported component type: {component_type}")
+                processed.append(line)
+        return '\n'.join(processed)
 
-def run_z_parameter(freq, netlist_filename='netlist.txt'):
-    """
-    Calculate Z-parameters for T-network topology
-    Port 1: nodes 0-4, Port 2: nodes 2-5
-    """
-    with open(netlist_filename, 'r') as file:
-        netlist_string = file.read()
-        logger.info("Original netlist:\n%s", netlist_string)
-        netlist_string = preprocess_netlist(netlist_string)
-        logger.info("Generated netlist is: %s", netlist_string)
-        
-        s = sp.Symbol('s')
-        omega = 2 * np.pi * freq
-        jw = sp.I * omega
-        logger.info(f"Frequency: {freq} Hz")
-
-        try:
-            # Method 1: Direct lcapy two-port analysis
-            circuit = Circuit(netlist_string)
-            
-            # For T-network: Port 1 is 0-4, Port 2 is 2-5
-            try:
-                twoport = circuit.twoport(0, 4, 2, 5)
-                Z_matrix = twoport.Z
-                Z11 = Z_matrix[0, 0]
-                Z12 = Z_matrix[0, 1]
-                Z21 = Z_matrix[1, 0]
-                Z22 = Z_matrix[1, 1]
-                logger.info("Using lcapy twoport method")
-                
-            except Exception as e:
-                logger.info("Twoport method failed: %s, using manual calculation", str(e))
-                
-                # Method 2: Manual Z-parameter calculation for T-network
-                # Z11: Apply 1A current between nodes 0-4, measure voltage (port 2 open)
-                circuit1_netlist = netlist_string + '\nI_test 0 4 1'  # 1A from node 0 to node 4
-                
-                circuit1 = Circuit(circuit1_netlist)
-                
-                # Port voltages are differential voltages
-                V1_port1 = circuit1[0].v - circuit1[4].v  # Voltage across port 1
-                V2_port1 = circuit1[2].v - circuit1[5].v  # Voltage across port 2
-                
-                Z11 = sp.simplify(V1_port1)  # Z11 = V1/I1 when I2=0
-                Z21 = sp.simplify(V2_port1)  # Z21 = V2/I1 when I2=0
-                
-                # Z12 and Z22: Apply 1A current between nodes 2-5, measure voltages (port 1 open)
-                circuit2_netlist = netlist_string + '\nI_test 2 5 1'  # 1A from node 2 to node 5
-                circuit2 = Circuit(circuit2_netlist)
-                
-                V1_port2 = circuit2[0].v - circuit2[4].v  # Voltage across port 1
-                V2_port2 = circuit2[2].v - circuit2[5].v  # Voltage across port 2
-                
-                Z12 = sp.simplify(V1_port2)  # Z12 = V1/I2 when I1=0
-                Z22 = sp.simplify(V2_port2)  # Z22 = V2/I2 when I1=0
-                
-                logger.info("Using manual differential voltage method")
-                
-        except Exception as e:
-            logger.error("Manual method failed: %s", str(e))
-            
-            # Method 3: Analytical T-network calculation
-            try:
-                logger.info("Using analytical T-network calculation")
-                
-                # Extract component values from netlist
-                # R1 = 100  # Top left resistor
-                # R2 = 100  # Top right resistor  
-                # R3 = 200  # Shunt resistor
-                
-                # Parse actual values from netlist
-                for line in netlist_string.strip().splitlines():
-                    tokens = line.split()
-                    if len(tokens) >= 4 and tokens[0].startswith('R'):
-                        name, n1, n2, value = tokens[:4]
-                        if name == 'R1':
-                            R1 = float(value)
-                        elif name == 'R2':
-                            R2 = float(value)
-                        elif name == 'R3':
-                            R3 = float(value)
-                
-                # T-network Z-parameter formulas
-                # For a T-network with series arms R1, R2 and shunt arm R3:
-                Z11 = R1 + (R2 * R3)/(R2 + R3)  # Input impedance
-                Z22 = R2 + (R1 * R3)/(R1 + R3)  # Output impedance
-                Z12 = (R1 * R2 * R3)/((R1 + R3) * (R2 + R3))  # Transfer impedance
-                Z21 = Z12  # Reciprocal network
-                
-                # Convert to sympy expressions
-                Z11 = sp.sympify(Z11)
-                Z12 = sp.sympify(Z12)
-                Z21 = sp.sympify(Z21)
-                Z22 = sp.sympify(Z22)
-                
-                logger.info("Using T-network analytical formulas")
-                
-            except Exception as e3:
-                logger.error("Analytical method failed: %s", str(e3))
-                return None
-        
-        # Simplify the expressions
-        Z11 = sp.simplify(Z11).evalf(2)
-        Z12 = sp.simplify(Z12).evalf(2)
-        Z21 = sp.simplify(Z21).evalf(2)
-        Z22 = sp.simplify(Z22).evalf(2)
-
-        
-        logger.info("Symbolic Z-parameters:")
-        logger.info("Z11 = %s", Z11)
-        logger.info("Z12 = %s", Z12)
-        logger.info("Z21 = %s", Z21)
-        logger.info("Z22 = %s", Z22)
-        
-        # Convert to numerical values
-        try:
-            # Handle different types of expressions
-            def to_numeric(expr):
-                if hasattr(expr, 'cval'):
-                    return expr.cval
-                elif hasattr(expr, 'as_expr'):
-                    return complex(expr.as_expr().subs(s, jw).evalf())
-                else:
+    def validate_ports(self, netlist: str, p1n1: str, p1n2: str, p2n1: str, p2n2: str) -> bool:
+        nodes = set()
+        for line in netlist.strip().splitlines():
+            tokens = line.split()
+            if len(tokens) >= 3:
+                for token in tokens[1:3]:
                     try:
-                        return complex(expr.subs(s, jw).evalf())
+                        nodes.add(str(token))
                     except:
-                        return complex(float(expr.evalf()))
-            
-            Z11_val = to_numeric(Z11)
-            Z12_val = to_numeric(Z12)
-            Z21_val = to_numeric(Z21)
-            Z22_val = to_numeric(Z22)
-            
+                        pass
+        port_nodes = [p1n1, p1n2, p2n1, p2n2]
+        missing_nodes = [node for node in port_nodes if str(node) not in nodes]
+        if missing_nodes:
+            logger.error(f"Port nodes not found in circuit: {missing_nodes}")
+            logger.info(f"Available nodes: {sorted(nodes)}")
+            return False
+        return True
+
+    def extract_symbolic_expression(self, lcapy_obj):
+        try:
+            if hasattr(lcapy_obj, 'expr'):
+                return lcapy_obj.expr
+            elif hasattr(lcapy_obj, 'as_expr'):
+                return lcapy_obj.as_expr()
+            elif hasattr(lcapy_obj, '__str__'):
+                expr_str = str(lcapy_obj).replace('j', 'I')
+                return sp.sympify(expr_str)
+            elif isinstance(lcapy_obj, sp.Basic):
+                return lcapy_obj
+            elif isinstance(lcapy_obj, (int, float, complex)):
+                return sp.sympify(lcapy_obj)
+            else:
+                logger.warning(f"Unknown lcapy object type: {type(lcapy_obj)}")
+                return sp.sympify(0)
         except Exception as e:
-            logger.error("Numerical conversion failed: %s", str(e))
-            # Fallback for resistive circuits
-            Z11_val = complex(float(Z11.evalf()))
-            Z12_val = complex(float(Z12.evalf()))
-            Z21_val = complex(float(Z21.evalf()))
-            Z22_val = complex(float(Z22.evalf()))
-        
-        logger.info("Z-parameter matrix at %s Hz:", freq)
-        logger.info("Z11 = %s", Z11_val)
-        logger.info("Z12 = %s", Z12_val)
-        logger.info("Z21 = %s", Z21_val)
-        logger.info("Z22 = %s", Z22_val)
-        
-        return {
-            "symbolic": {
-                "Z11": str(Z11), "Z12": str(Z12),
-                "Z21": str(Z21), "Z22": str(Z22)
-            },
-            "numeric": {
-                "Z11": Z11_val, "Z12": Z12_val,
-                "Z21": Z21_val, "Z22": Z22_val
+            logger.warning(f"Failed to extract symbolic expression: {e}")
+            return sp.sympify(0)
+
+    def calculate_z_parameters_twoport(self, netlist: str, p1n1: str, p1n2: str,
+                                       p2n1: str, p2n2: str) -> Dict[str, sp.Basic]:
+        logger.info("Using lcapy twoport method - Z-parameters only")
+        if ' 0 ' not in netlist:
+            netlist += f'\nRgnd {p1n2} 0 1e12'
+            logger.info("Added ground reference resistor for twoport analysis")
+        circuit = Circuit(netlist)
+        twoport = circuit.twoport(p1n1, p1n2, p2n1, p2n2)
+        z_params = {}
+        if hasattr(twoport, 'Z'):
+            Z_matrix = twoport.Z
+            z_params = {
+                "Z11": self.extract_symbolic_expression(Z_matrix[0, 0]),
+                "Z12": self.extract_symbolic_expression(Z_matrix[0, 1]),
+                "Z21": self.extract_symbolic_expression(Z_matrix[1, 0]),
+                "Z22": self.extract_symbolic_expression(Z_matrix[1, 1]),
+                
             }
+        elif hasattr(twoport, 'z'):
+            z_matrix = twoport.z
+            z_params = {
+                "Z11": self.extract_symbolic_expression(z_matrix[0, 0]),
+                "Z12": self.extract_symbolic_expression(z_matrix[0, 1]),
+                "Z21": self.extract_symbolic_expression(z_matrix[1, 0]),
+                "Z22": self.extract_symbolic_expression(z_matrix[1, 1])
+            }
+        elif hasattr(twoport, 'Z11'):
+            z_params = {
+                "Z11": self.extract_symbolic_expression(twoport.Z11),
+                "Z12": self.extract_symbolic_expression(twoport.Z12),
+                "Z21": self.extract_symbolic_expression(twoport.Z21),
+                "Z22": self.extract_symbolic_expression(twoport.Z22)
+            }
+            
+        else:
+            raise ValueError("Z-parameters not found in twoport object")
+        return z_params
+
+    def format_complex_eng(self, value: complex) -> str:
+        real = value.real
+        imag = value.imag
+        def to_eng(val):
+            abs_val = abs(val)
+            if abs_val == 0:
+                return "0"
+            suffixes = ['','k','M','G','T']
+            for i, s in enumerate(suffixes):
+                scaled = abs_val / (10**(3*i))
+                if scaled < 1000:
+                    return f"{scaled:.2f}{s}"
+            return f"{abs_val:.2e}"
+        if abs(real) < 1e-9:
+            return f"{'-' if imag < 0 else ''}j{to_eng(imag)}"
+        if abs(imag) < 1e-9:
+            return f"{to_eng(real)}"
+        return f"{to_eng(real)} {'-' if imag < 0 else '+'} j{to_eng(imag)}"
+
+    def evaluate_at_frequency(self, z_params: Dict[str, sp.Basic], frequency: float) -> Dict[str, complex]:
+        omega = 2 * np.pi * frequency
+        jw = sp.I * omega
+        numeric_params = {}
+        for param, expr in z_params.items():
+            try:
+                if not isinstance(expr, sp.Basic):
+                    expr = sp.sympify(expr)
+                substituted = expr.subs(self.s, jw)
+                result = complex(substituted.evalf())
+                numeric_params[param] = result
+                formatted = self.format_complex_eng(result)
+                logger.info(f"{param} = {formatted} \u03a9")
+            except Exception as e:
+                logger.error(f"Failed to evaluate {param}: {e}")
+                numeric_params[param] = 0+0j
+        return numeric_params
+
+    def run_z_parameter(self, freq: float, p1n1: str, p1n2: str, p2n1: str, p2n2: str,
+                        netlist_filename: str = 'netlist.txt') -> Dict[str, Any]:
+        try:
+            with open(netlist_filename, 'r') as file:
+                netlist_string = file.read()
+            logger.info(f"Read netlist from: {netlist_filename}")
+        except FileNotFoundError:
+            return self._create_error_result(f"Netlist file not found: {netlist_filename}", freq)
+        processed_netlist = self.preprocess_netlist(netlist_string)
+        if not self.validate_ports(processed_netlist, p1n1, p1n2, p2n1, p2n2):
+            return self._create_error_result("Invalid port nodes", freq)
+        try:
+            z_params_symbolic = self.calculate_z_parameters_twoport(processed_netlist, p1n1, p1n2, p2n1, p2n2)
+        except Exception as e:
+            return self._create_error_result(str(e), freq)
+        for param in z_params_symbolic:
+            try:
+                z_params_symbolic[param] = sp.simplify(z_params_symbolic[param])
+            except:
+                pass
+        z_params_numeric = self.evaluate_at_frequency(z_params_symbolic, freq)
+        reciprocal = abs(z_params_numeric['Z12'] - z_params_numeric['Z21']) < 1e-12
+        return {
+            "frequency": freq,
+            "symbolic": {k: str(v) for k, v in z_params_symbolic.items()},
+            "numeric": z_params_numeric,
+            "reciprocal": reciprocal,
+            "method_used": "twoport_z_only"
         }
 
-# Example usage
+    def _create_error_result(self, msg: str, freq: float) -> Dict[str, Any]:
+        return {
+            "error": msg,
+            "frequency": freq,
+            "symbolic": {"Z11": "0", "Z12": "0", "Z21": "0", "Z22": "0"},
+            "numeric": {"Z11": 0+0j, "Z12": 0+0j, "Z21": 0+0j, "Z22": 0+0j},
+            "reciprocal": False,
+            "method_used": "failed"
+        }
+
+def run_z_parameter(freq: float, p1n1: str, p1n2: str, p2n1: str, p2n2: str,
+                    netlist_filename: str = 'netlist.txt') -> Dict[str, Any]:
+    calculator = ZParameterCalculator()
+    return calculator.run_z_parameter(freq, p1n1, p1n2, p2n1, p2n2, netlist_filename)
+
+def main():
+    print("Z-Parameter Calculator")
+    print("Usage: z_params = run_z_parameter(frequency, p1n1, p1n2, p2n1, p2n2)")
+    print("Make sure your netlist is in 'netlist.txt' or specify another file")
+
 if __name__ == "__main__":
-    # Test with a sample frequency
-    # freq = 1000  # 1 kHz
-    
-    result = run_z_parameter()
-    
-    if result:
-        print("\nZ-Parameter Results:")
-        print(f"Z11 = {result['numeric']['Z11']:.6f}")
-        print(f"Z12 = {result['numeric']['Z12']:.6f}")
-        print(f"Z21 = {result['numeric']['Z21']:.6f}")
-        print(f"Z22 = {result['numeric']['Z22']:.6f}")
-        
-        # Check reciprocity
-        if abs(result['numeric']['Z12'] - result['numeric']['Z21']) < 1e-10:
-            print("✓ Network is reciprocal (Z12 = Z21)")
-        else:
-            print("⚠ Network is not reciprocal")
-        
-    
-    else:
-        print("Analysis failed")
+    main()

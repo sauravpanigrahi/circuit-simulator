@@ -23,6 +23,10 @@ export const ContextProvider = ({ children }) => {
   const[parameterType,setparameterType]=useState("z")
   const [frequency, setFrequency] = useState();
   const[parametervalue,setparametervalue]=useState();
+  const [p1n1, setp1n1] = useState();
+const [p1n2, setp1n2] = useState();
+const [p2n1, setp2n1] = useState();
+const [p2n2, setp2n2] = useState();
   useEffect(()=>{
     const handleUpdateNodes = ()=>{
       const newMap = new Map()
@@ -302,7 +306,9 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         netList: netstring, 
         numberNodes: updatedNodes.size,
         analysisType: analysisType,
-        frequency: parseFloat(frequency) || 0
+        frequency: parseFloat(frequency) || 0,
+        
+
       };
   
       console.log('Sending simulation data:', body);
@@ -367,8 +373,14 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         netList: netstring, 
         numberNodes: updatedNodes.size,
         parameterType: parameterType,
-        frequency: parseFloat(frequency) || 0
+        frequency: parseFloat(frequency) || 0,
+        p1n1: p1n1 ? parseInt(p1n1) : null,
+        p1n2: p1n2 ? parseInt(p1n2) : null,
+        p2n1: p2n1 ? parseInt(p2n1) : null,
+        p2n2: p2n2 ? parseInt(p2n2) : null
       };
+      
+    
   
       console.log('Sending parameter data:', body);
       console.log('Starting fetch request...');
@@ -534,6 +546,14 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         setparametervalue,
         frequency,
         setFrequency,
+        p1n1,
+        p1n2,
+        p2n1,
+        p2n2,
+        setp1n1,
+        setp1n2,
+        setp2n1,
+        setp2n2,
         simData,
         valMap,
         setValMap,

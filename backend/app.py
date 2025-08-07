@@ -10,6 +10,7 @@ from transient_analysis import run_transient_analysis
 from ac_analysis import run_ac_analysis
 from dc_analysis import run_dc_analysis
 from Z_parameter import run_z_parameter
+from Y_parameter import run_y_parameter
 import os
 from dotenv import load_dotenv
 import logging
@@ -506,6 +507,34 @@ def parameter():
         numberOfNodes = ckt_data.get("numberNodes", 0)
         parameterType = ckt_data.get("parameterType", "z").lower()
         groundNode = netlist.get("groundNode")
+        try:
+            p1n1 = int(ckt_data.get("p1n1", 0))
+        except (ValueError, TypeError):
+            p1n1 = 0
+            logger.warning("Invalid p1n1 value, defaulting to 0")
+
+        try:
+            p1n2 = int(ckt_data.get("p1n2", 0))
+        except (ValueError, TypeError):
+            p1n2 = 0
+            logger.warning("Invalid p1n2 value, defaulting to 0")
+
+        try:
+            p2n1 = int(ckt_data.get("p2n1", 0))
+        except (ValueError, TypeError):
+            p2n1 = 0
+            logger.warning("Invalid p2n1 value, defaulting to 0")
+
+        try:
+            p2n2 = int(ckt_data.get("p2n2", 0))
+        except (ValueError, TypeError):
+            p2n2 = 0
+            logger.warning("Invalid p2n2 value, defaulting to 0")
+
+        logger.info(f"Parsed ports → p1n1: {p1n1}, p1n2: {p1n2}, p2n1: {p2n1}, p2n2: {p2n2}")
+
+
+
 
         try:
             frequency = float(ckt_data.get("frequency", 0))
@@ -595,8 +624,7 @@ def parameter():
     # Run the appropriate analysis
             if parameterType == "z":
                 logger.info("Starting Z-parameter")
-                z_params = run_z_parameter(frequency)
-
+                z_params = run_z_parameter(frequency, p1n1, p1n2, p2n1, p2n2)
                 logger.info("Z-parameter analysis completed successfully")
                 return jsonify({
                     "parameters": {
@@ -615,7 +643,7 @@ def parameter():
             elif parameterType == "y":
                 logger.info("Starting Y-parameter")
                 logger.info(f"Frequency: {frequency}")
-                y_params = run_y_parameter(frequency)
+                y_params = run_y_parameter(frequency,p1n1, p1n2, p2n1, p2n2)
 
                 logger.info("Y-parameter analysis completed successfully")
                 return jsonify({
