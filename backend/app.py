@@ -32,7 +32,8 @@ CORS(app, resources={
     r"/*": {
         "origins": [
             "http://localhost:3000",               # dev
-            "https://circuit-simulator-51410.web.app"    # production
+            "https://circuit-simulator-51410.web.app",
+                  # production
         ],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Accept"],

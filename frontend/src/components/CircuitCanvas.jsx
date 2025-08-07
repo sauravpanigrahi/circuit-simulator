@@ -656,7 +656,7 @@ const CircuitCanvas = () => {
 
       console.log('Sending circuit data:', JSON.stringify(circuitData, null, 2));
 
-      const response = await fetch('https://circuit-simulator.onrender.com/', {
+      const response = await fetch('http://127.0.0.1:8000/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -743,7 +743,7 @@ const CircuitCanvas = () => {
     
     const { Z11, Z12, Z21, Z22 } = parametervalue.parameters.numeric;
     const { Z11: symZ11, Z12: symZ12, Z21: symZ21, Z22: symZ22 } = parametervalue.parameters.symbolic;
-  
+    
     return (
       <div style={{
         padding: '15px',
@@ -765,6 +765,7 @@ const CircuitCanvas = () => {
           <div style={{ gridColumn: '1 / 2', textAlign: 'center', fontWeight: 'bold' }}>
             [Z] =
           </div>
+          
           <div style={{
             gridColumn: '2 / 4',
             display: 'grid',
@@ -772,30 +773,32 @@ const CircuitCanvas = () => {
             gap: '5px',
             border: '1px solid #ccc',
             padding: '10px',
-            backgroundColor: 'white'
+            backgroundColor: 'white',
+            color: 'black'
           }}>
+            {/* <p>{symZ11}</p> */}
             <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
-              {complexform ? 
+            {complexform ? 
                 formatImpedance(Z11, { precision: 1, unit: 'Ω', showAsKilo: true }) : 
-                Number(symZ11).toFixed(2)
+                formatImpedance(Z11, { precision: 2, unit: 'Ω' })
               }
             </div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
               {complexform ? 
                 formatImpedance(Z12, { precision: 1, unit: 'Ω', showAsKilo: true }) : 
-                Number(symZ12).toFixed(2)
+                formatImpedance(Z12, { precision: 2, unit: 'Ω' })
               }
             </div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
               {complexform ? 
                 formatImpedance(Z21, { precision: 1, unit: 'Ω', showAsKilo: true }) : 
-                Number(symZ21).toFixed(2)
+                formatImpedance(Z21, { precision: 2, unit: 'Ω' })
               }
             </div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
               {complexform ? 
                 formatImpedance(Z22, { precision: 1, unit: 'Ω', showAsKilo: true }) : 
-                Number(symZ22).toFixed(2)
+                formatImpedance(Z22, { precision: 2, unit: 'Ω' })
               }
             </div>
           </div>
@@ -875,7 +878,8 @@ const CircuitCanvas = () => {
             gap: '5px',
             border: '1px solid #ccc',
             padding: '10px',
-            backgroundColor: 'white'
+            backgroundColor: 'white',
+            color: 'black'
           }}>
             <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>
               {formatAdmittance(Y11, { precision: 2, unit: 'S' })}
