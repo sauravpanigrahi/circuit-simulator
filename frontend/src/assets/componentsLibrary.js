@@ -41,7 +41,7 @@ export const components = {
                 .attr("id", lineId)
                 .style("cursor", "pointer")
                 .on("click", () => setSelectedLine(lineId))
-                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+                .on("dblclick", () => handleLineDoubleClick(lineId))
                 .on("mouseover", (e) => showLineCurrent(e, lineId))
                 .on("mouseout", () => hideLineCurrent());
             
@@ -145,7 +145,7 @@ export const components = {
                 .attr("id", lineId)
                 .style("cursor", "pointer")
                 .on("click", () => setSelectedLine(lineId))
-                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+                .on("dblclick", () => handleLineDoubleClick(lineId))
                 .on("mouseover", (e) => showLineCurrent(e, lineId))
                 .on("mouseout", () => hideLineCurrent());
             
@@ -237,7 +237,7 @@ export const components = {
                 .attr("id", lineId)
                 .style("cursor", "pointer")
                 .on("click", () => setSelectedLine(lineId))
-                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+                .on("dblclick", () => handleLineDoubleClick(lineId))
                 .on("mouseover", (e) => showLineCurrent(e, lineId))
                 .on("mouseout", () => hideLineCurrent());
             
@@ -303,7 +303,7 @@ export const components = {
             .attr("id", lineId)
             .style("cursor", "pointer")
             .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+            .on("dblclick", () => handleLineDoubleClick(lineId))
             .on("mouseover", (e) => showLineCurrent(e, lineId))
             .on("mouseout", () => hideLineCurrent());
         
@@ -395,7 +395,7 @@ AC: {
             .attr("id", lineId)
             .style("cursor", "pointer")
             .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+            .on("dblclick", () => handleLineDoubleClick(lineId))
             .on("mouseover", (e) => showLineCurrent(e, lineId))
             .on("mouseout", () => hideLineCurrent());
         
@@ -497,7 +497,7 @@ AC: {
                 .attr("id", lineId)
                 .style("cursor", "pointer")
                 .on("click", () => setSelectedLine(lineId))
-                .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+                .on("dblclick", () => handleLineDoubleClick(lineId))
                 .on("mouseover", (e) => showLineCurrent(e, lineId))
                 .on("mouseout", () => hideLineCurrent());
             
@@ -594,7 +594,7 @@ AC: {
             .attr("fill", "none")
             .attr("transform", "rotate(0 " + x1 + " " + y1 + ")")
             .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+            .on("dblclick", () => handleLineDoubleClick(lineId))
             .on("mouseover", (e) => showLineCurrent(e, lineId))
             .on("mouseout", () => hideLineCurrent());
         }
@@ -808,7 +808,7 @@ NMosfet: {
             .attr("fill", "none")
             .attr("transform", "rotate(0 " + x1 + " " + y1 + ")")
             .on("click", () => setSelectedLine(lineId))
-            .on("dblclick", () => handleLineDoubleClick(lineId, 0))
+            .on("dblclick", () => handleLineDoubleClick(lineId))
             .on("mouseover", (e) => showLineCurrent(e, lineId))
             .on("mouseout", () => hideLineCurrent());
     }
@@ -1016,7 +1016,7 @@ VCVS: {
             .on("click", () => handleLineClick(lineId))
             .on("dblclick", (event) => {
                 event.stopPropagation();
-                handleLineDoubleClick(lineId, 0);
+                handleLineDoubleClick(lineId);
             })
             .on("mouseover", (event) => showLineCurrent(event, lineId))
             .on("mouseout", () => hideLineCurrent());
@@ -1274,7 +1274,7 @@ CCCS: {
       .on("click", () => handleLineClick(lineId))
       .on("dblclick", (event) => {
         event.stopPropagation();
-        handleLineDoubleClick(lineId, "dependent_current");
+        handleLineDoubleClick(lineId);
       })
       .on("mouseover", (event) => showLineCurrent(event, lineId))
       .on("mouseout", () => hideLineCurrent());

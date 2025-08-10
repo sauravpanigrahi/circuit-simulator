@@ -508,7 +508,7 @@ const CircuitCanvas = () => {
       y1,
       y2,
       x3,
-      y3
+      y3,
     );
     return lineId;
   };

@@ -376,15 +376,17 @@ body {
 }
 
 .circuit-dot:hover {
-  fill: var(--accent-color);
+  fill: var(--danger-color);
   stroke: var(--text-primary);
   stroke-width: 2;
   filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.5));
+  
 }
 
 .circuit-dot.selected {
   fill: var(--success-color);
   stroke: var(--text-primary);
+
   stroke-width: 2;
 }
 

@@ -680,6 +680,33 @@ def parameter():
             "traceback": traceback.format_exc(),
             "status": "error"
         }), 500
+posts_list=[]    
+@app.route('/blog/form', methods=['POST', 'GET'])
+def blog_posts():
+    if request.method == 'POST':
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Example: Add a timestamp if not provided
+        if "date" not in data:
+            from datetime import datetime
+            data["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        posts_list.append(data)
+        return jsonify({
+            "message": "Post added successfully",
+            "post": data
+        }), 201
+
+    elif request.method == 'GET':
+        return jsonify(posts_list), 200
+
+
+# @app.route('/blog',methods=['GET'])
+# def posts():
+#     return jsonify(posts_list),202
 
 if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")

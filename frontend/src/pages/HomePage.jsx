@@ -19,6 +19,9 @@ const HomePage = () => {
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
+  const handleBlogClick = () => {
+    navigate('/blog');
+  }
 
   // Apply theme to body
   useEffect(() => {
@@ -172,6 +175,15 @@ const HomePage = () => {
                   onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}
                 >
                   Features
+                </a>
+              </li>
+              <li className="nav-item">
+                <a 
+                  className="nav-link nav-link-custom" 
+                  href="#documentation" 
+                  onClick={handleBlogClick}
+                >
+                  Blog
                 </a>
               </li>
               <li className="nav-item">
@@ -414,17 +426,17 @@ const HomePage = () => {
                   <div className="col-md-6">
                     <div className="contact-info">
                       <h4 className="text-light mb-3">Contact Information</h4>
-                      <p className="text-light opacity-75 mb-2">
+                      {/* <p className="text-light opacity-75 mb-2">
                         <i className="bi bi-envelope me-2"></i>
                         info@circuitsim.com
-                      </p>
+                      </p> */}
                       <p className="text-light opacity-75 mb-2">
                         <i className="bi bi-github me-2"></i>
-                        github.com/circuitsim
+                        github.com/sauravpanigrahi/circuit-simulator
                       </p>
                       <p className="text-light opacity-75">
                         <i className="bi bi-globe me-2"></i>
-                        circuitsim.com
+                        circuit-simulator-51410.web.app
                       </p>
                     </div>
                   </div>
