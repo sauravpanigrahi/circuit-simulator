@@ -662,7 +662,8 @@ const CircuitCanvas = () => {
 
   const generateNetlist = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/generate-netlist', {
+      const response = await fetch('
+https://circuit-simulator.onrender.com/generate-netlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' ,
           'Accept': 'application/json',
