@@ -320,8 +320,7 @@ const sendSimulationData = async () => {
     console.log('Sending simulation data:', body);
     console.log('Starting fetch request...');
     
-    const response = await fetch('
-https://circuit-simulator.onrender.com/simulation', {
+    const response = await fetch('https://circuit-simulator.onrender.com/simulation', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -396,8 +395,7 @@ https://circuit-simulator.onrender.com/simulation', {
       console.log('Sending parameter data:', body);
       console.log('Starting fetch request...');
       
-      const response = await fetch('
-https://circuit-simulator.onrender.com/parameter', {
+      const response = await fetch('https://circuit-simulator.onrender.com/parameter', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
