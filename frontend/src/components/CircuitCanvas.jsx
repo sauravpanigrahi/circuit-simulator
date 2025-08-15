@@ -5,6 +5,7 @@ import { useMyContext } from "../contextApi/MyContext";
 import { useState, useEffect } from "react";
 import "./CircuitCanvas.css";
 import { useNavigate } from "react-router-dom";
+import { toast } from 'react-toastify';
 
 const CircuitCanvas = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const CircuitCanvas = () => {
     selectedNodes,
     setSelectedNodes,
     updatedNodes,
+    setUpdatedNodes,
     sendSimulationData,
     sendparameterData,
     viewSimulation,
@@ -55,6 +57,7 @@ const CircuitCanvas = () => {
   const [parameterResults, setParameterResults] = useState(null);
   const [showParameterResults, setShowParameterResults] = useState(false);
   const [complexform, setcomplexform] = useState(false);
+  // const [groundNodeId, setGroundNodeId] = useState(null); // store the selected ground node
 
   const svgRef = React.createRef();
   const numRows = 30;
@@ -554,18 +557,39 @@ const CircuitCanvas = () => {
     }
   };
 
-  const setGroundNode = (nodeId) => {
-    const newNodeMap = new Map(updatedNodes);
-    newNodeMap.set(nodeId, 0);
-    setSelectedNodes(newNodeMap);
 
+
+  const setGroundNode = (nodeId) => {
+    if (!nodeId) {
+      toast.error("Please select a valid node to set as ground.");
+      return;
+    }
+  
+    setUpdatedNodes((prevNodes) => {
+      const newNodeMap = new Map(prevNodes);
+  
+      // ✅ Check if ground already exists
+      if ([...newNodeMap.values()].includes(0)) {
+        toast.error("Ground node is already set.");
+        return prevNodes;
+      }
+  
+      newNodeMap.set(nodeId, 0);
+  
+      // ✅ Show toast with the actual node number (0 for ground)
+      toast.success(`Ground set at Node ${newNodeMap.get(nodeId)}`);
+  
+      console.log(`Node ${nodeId} set as ground (Node Number: ${newNodeMap.get(nodeId)})`);
+      return newNodeMap;
+    });
+  
     if (nextNodeNumber === 0) {
       setNextNodeNumber(1);
     }
-
-    console.log(`Node ${nodeId} set as ground.`);
-    console.log(updatedNodes);
   };
+  
+  
+  
 
   const handleLineDoubleClick = (lineId, value) => {
     if (selectedComponent === "VCVS" || selectedComponent === "VCCS") {
@@ -638,38 +662,19 @@ const CircuitCanvas = () => {
 
   const generateNetlist = async () => {
     try {
-      const circuitData = {
-        components: lines.map((lineId) => {
-          const [componentType, ...dotIds] = lineId.split('_');
-          const component = components[componentType];
-          const value = valMap.get(lineId) || 'not set';
-          const nodeNumbers = dotIds.map(dotId => updatedNodes.has(dotId) ? updatedNodes.get(dotId) : '?');
-
-          return {
-            type: component.name,
-            id: component.id,
-            node: nodeNumbers,
-            value: value
-          };
-        })
-      };
-
-      console.log('Sending circuit data:', JSON.stringify(circuitData, null, 2));
-
-      const response = await fetch('https://circuit-simulator.onrender.com/', {
+      const response = await fetch('http://127.0.0.1:8000/generate-netlist', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+        headers: { 'Content-Type': 'application/json' ,
+          'Accept': 'application/json',
         },
-        body: JSON.stringify(circuitData),
+        body: JSON.stringify({})
       });
-
+  
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Server response:', errorText);
         throw new Error(`Failed to generate netlist: ${errorText}`);
       }
-
+  
       const data = await response.json();
       console.log('Received netlist:', data);
       setNetlist(data.netlist);
@@ -678,6 +683,7 @@ const CircuitCanvas = () => {
       alert('Failed to generate netlist. Please check the console for details.');
     }
   };
+  
 
   const getCurrentValue = (lineId, simData, temp) => {
     if (!simData || !simData.current || !temp[lineId]) {
@@ -1072,7 +1078,7 @@ const CircuitCanvas = () => {
             >
               <option value="z">Z-parameter</option>
               <option value="y">Y-parameter</option>
-              <option value="ab">ABCD-parameter</option>
+              <option value="ab" disabled>ABCD-parameter</option>
             </select>
 
             <input

@@ -3,6 +3,9 @@ from flask import Flask, request, jsonify, url_for, send_from_directory
 import json  # Import the json module
 import numpy as np  # For numerical operations
 from flask_cors import CORS
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import logging
 from lcapy import Circuit, j, omega, s, t, sin
 import sympy as sp  # For more control over symbolic expressions
 import re
@@ -17,7 +20,7 @@ import logging
 
 # Load environment variables from .env file
 load_dotenv()
-
+app = FastAPI()
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -91,110 +94,32 @@ def validate_component(component):
             logger.error(f"Invalid value in component {component['id']}: {value}")
             return False
 
-def generate_netlist(circuit_data):
-    """
-    Generate a netlist using Lcapy from the circuit data
-    
-    Args:
-        circuit_data (dict): Dictionary containing circuit components and their properties
-        
-    Returns:
-        str: Netlist in SPICE format
-    """
+class EmptyRequest(BaseModel):
+    pass
+
+@app.post("/generate-netlist")
+def generate_netlist():
     try:
-        # Create a new circuit
+        netlist_path = "netlist.txt"
+        if not os.path.exists(netlist_path):
+            raise HTTPException(status_code=404, detail="netlist.txt not found")
+        with open(netlist_path, "r") as f:
+            file_content = f.read()
         circuit = Circuit()
-        
-        # Keep track of component counts for unique IDs
-        component_counts = {}
-        
-        # Process each component
-        for component in circuit_data:
-            if not validate_component(component):
-                logger.warning(f"Skipping invalid component: {component}")
-                continue
-                
-            comp_type = component['type']
-            nodes = component['node']
-            value = component['value']
-           
-            # Convert node values to strings and handle '?' nodes
-            node1 = str(nodes[0]) if nodes[0] != '?' else '0'
-            node2 = str(nodes[1]) if nodes[1] != '?' else '0'
-            node3 = str(nodes[2]) if len(nodes) > 2 and nodes[2] != '?' else '0'
-            
-            # Generate unique component ID
-            base_id = str(component['id'])
-            if base_id not in component_counts:
-                component_counts[base_id] = 0
-            component_counts[base_id] += 1
-            unique_id = f"{component_counts[base_id]}" if component_counts[base_id] > 1 else 1
-            
-            # Handle different component types
-            try:
-                if comp_type == 'R' or comp_type == 'Resistor':
-                    circuit.add(f'R{unique_id} {node1} {node2} {float(value)}')
-                elif comp_type == 'C' or comp_type == 'Capacitor':
-                    circuit.add(f'C{unique_id} {node1} {node2} {float(value)}')
-                elif comp_type == 'L' or comp_type == 'Inductor':
-                    circuit.add(f'L{unique_id} {node1} {node2} {float(value)}')
-                elif comp_type == 'V' or comp_type == 'VoltageSource':
-                    circuit.add(f'V{unique_id} {node1} {node2} {float(value)}')
-                elif comp_type == 'AC' or comp_type == 'AC Source':
-                    # Handle AC source with dictionary value containing magnitude and phase
-                    if isinstance(value, dict) and 'value' in value and 'phase' in value:
-                        try:
-                            magnitude = float(value['value'])
-                            phase = float(value['phase'])
-                            circuit.add(f"V{unique_id} {node1} {node2} AC {magnitude} {phase}")
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Non-numeric value/phase in AC component {component['id']}: {value}")
-                            continue
-                    else:
-                        logger.error(f"Invalid AC source value format in component {component['id']}: {value}")
-                        continue
-                elif comp_type == 'I' or comp_type == 'CurrentSource':
-                    circuit.add(f'I{unique_id} {node1} {node2} {float(value)}')
-                elif comp_type == 'D' or comp_type == 'Diode':
-                    # Diode syntax in Lcapy only takes nodes, not value
-                    circuit.add(f'D{unique_id} {node1} {node2}')
-                elif comp_type == 'W' or comp_type == 'Wire':
-                    # For wires, we just connect the nodes without adding a component
-                    circuit.add(f'W{unique_id} {node1} {node2}')
-                elif comp_type == 'NpnTransistor':
-                    if len(nodes) != 3:
-                        raise ValueError(f"NPN transistor requires 3 nodes, got {len(nodes)}")
-                    circuit.add(f'Q{unique_id} {node1} {node2} {node3} QN')
-                elif comp_type == 'PnpTransistor':
-                    if len(nodes) != 3:
-                        raise ValueError(f"PNP transistor requires 3 nodes, got {len(nodes)}")
-                    circuit.add(f'Q{unique_id} {node1} {node2} {node3} QP')
-                elif comp_type == 'NMosfet':
-                    if len(nodes) != 3:
-                        raise ValueError(f"NMOS requires 3 nodes, got {len(nodes)}")
-                    circuit.add(f'M{unique_id} {node1} {node2} {node3} Value=NMOS')
-                elif comp_type == 'PMosfet':
-                    if len(nodes) != 3:
-                        raise ValueError(f"PMOS requires 3 nodes, got {len(nodes)}")
-                    circuit.add(f'M{unique_id} {node1} {node2} {node3} Value=PMOS')
-                else:
-                    logger.warning(f"Unsupported component type: {comp_type}")
-                    continue
-            except ValueError as e:
-                logger.error(f"Error processing component {comp_type}{unique_id}: {e}")
-                continue
-        
-        # Add ground node reference using Lcapy's syntax
-        # circuit.add('Vg 0 0 0')
-        
-        # Generate the netlist
+        circuit.add(file_content)
         netlist = circuit.netlist()
         logger.info(f"Generated netlist: {netlist}")
-        
-        return netlist
-    except Exception as e:
-        logger.error(f"Error generating netlist: {str(e)}")
+
+        return {"netlist": netlist}
+
+    except HTTPException:
+        # Allow HTTP errors to propagate as they are
         raise
+    except Exception as e:
+        # Log unexpected errors and return a 500 response
+        logger.exception("Unexpected error generating netlist")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.route('/', methods=['GET', 'POST', 'OPTIONS', 'HEAD'])
 def simulate():
     if request.method in ['GET', 'HEAD']:          # <‑‑ handle both
@@ -274,10 +199,12 @@ def simulation():
         groundNode = netlist.get("groundNode")
 
         try:
-            frequency = float(ckt_data.get("frequency", 0))
+        
+            frequency = float(ckt_data.get("frequency", 50))  # default to 50 if missing
         except (ValueError, TypeError):
-            frequency = 0
-            logger.warning("Invalid frequency value, defaulting to 0")
+            frequency = 50
+            logger.warning("Invalid frequency value, defaulting to 50")
+
 
         # Process components
         for comp in components:
@@ -312,7 +239,7 @@ def simulation():
                 depnode3 = comp.get('dependentnode1', '')
                 depnode4 = comp.get('dependentnode2', '')
                 depVoltage=comp.get('Vcontrol','')
-                phase=comp.get('phase','')
+                phase=comp.get('phase',0)
             # Ensure value is a string/number, not an object
             if isinstance(value, dict):
                 logger.error(f"Value is still a dict for component {id_}: {value}")
@@ -323,7 +250,16 @@ def simulation():
                 if type_prefix == 'DC Source':
                     line = f"{id_} {node2} {node1} {value}\n"
                 elif type_prefix == 'AC Source':
-                    line = f"{id_} {node1} {node2} AC {value} {phase}\n"    
+                    if phase is None:
+                        phase = 0
+                    try:
+                        phase = float(phase)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid phase for {id_}, defaulting to 0")
+                        phase = 0
+
+                    line = f"{id_} {node1} {node2} AC {value} {phase}\n"
+    
                 elif type_prefix == 'VCVS':
                     # VCVS format: E<n> <+node> <-node> <+control> <-control> <Voltage gain>
                     line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
@@ -538,10 +474,10 @@ def parameter():
 
 
         try:
-            frequency = float(ckt_data.get("frequency", 0))
+            frequency = float(ckt_data.get("frequency", 50))
         except (ValueError, TypeError):
-            frequency = 0
-            logger.warning("Invalid frequency value, defaulting to 0")
+            frequency = 50
+            logger.warning("Invalid frequency value, defaulting to 50")
 
         # Process components
         for comp in components:

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState} from "react";
 // import * as d3 from 'd3'
+import { toast
 
+ } from "react-toastify";
 const MyContext = createContext();
 
 export const ContextProvider = ({ children }) => {
@@ -24,13 +26,13 @@ export const ContextProvider = ({ children }) => {
   const [frequency, setFrequency] = useState();
   const[parametervalue,setparametervalue]=useState();
   const [p1n1, setp1n1] = useState();
-const [p1n2, setp1n2] = useState();
-const [p2n1, setp2n1] = useState();
-const [p2n2, setp2n2] = useState();
+  const [p1n2, setp1n2] = useState();
+  const [p2n1, setp2n1] = useState();
+  const [p2n2, setp2n2] = useState();
   useEffect(()=>{
     const handleUpdateNodes = ()=>{
       const newMap = new Map()
-      let i = 0;
+      let i = 1;
       for(const [key] of selectedNodes)
       {
         newMap.set(key, i);
@@ -285,73 +287,72 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
   return null;
 };
 
-  const sendSimulationData = async () => {
-    try {
-      // Find ground node (node with value 0)
-      let groundNode = null;
-      for (const [key, value] of updatedNodes.entries()) {
-        if (value === 0) {
-          groundNode = key;
-          break;
-        }
+const sendSimulationData = async () => {
+  try {
+    // ✅ Find ground node (node with value 0)
+    let groundNode = null;
+    for (const [key, value] of updatedNodes.entries()) {
+      if (value === 0) {
+        groundNode = key;
+        break;
       }
-  
-      // Convert the components array into a JSON string
-      const netstring = JSON.stringify({
-        components: components,
-        groundNode: groundNode ? updatedNodes.get(groundNode) : 1 // Use node 1 as default ground if none specified
-      }, null, 2);
-  
-      const body = { 
-        netList: netstring, 
-        numberNodes: updatedNodes.size,
-        analysisType: analysisType,
-        frequency: parseFloat(frequency) || 0,
-        
-
-      };
-  
-      console.log('Sending simulation data:', body);
-      console.log('Starting fetch request...');
-      
-      const response = await fetch('https://circuit-simulator.onrender.com/simulation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(body),
-      });
-      
-      console.log('Fetch response received:', response);
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Simulation results:', data);
-      
-      // if (data.status === 'error') {
-      //   throw new Error(data.error || 'Unknown error occurred during simulation');
-      // }
-      
-      setSimData(data);
-      alert('Simulation completed successfully!');
-      
-    } catch (error) {
-      console.error('=== COMPLETE ERROR DETAILS ===');
-      // console.error('Error:', error);
-      // console.error('Error name:', error.name);
-      // console.error('Error message:', error.message);
-      // console.error('Error stack:', error.stack);
-      // console.error('=============================');
-      alert(`Simulation failed: ${error.message}`);
     }
+
+    // ✅ Stop simulation if no ground node found
+    if (!groundNode) {
+      toast.error("Please set a ground node before running the simulation.");
+      return; // ❌ Exit function early
+    }
+
+    // Convert the components array into a JSON string
+    const netstring = JSON.stringify({
+      components: components,
+      groundNode: updatedNodes.get(groundNode) // Now safe because groundNode is guaranteed
+    }, null, 2);
+
+    const body = { 
+      netList: netstring, 
+      numberNodes: updatedNodes.size,
+      analysisType: analysisType,
+      frequency: parseFloat(frequency) || 50,
+    };
+
+    console.log('Sending simulation data:', body);
+    console.log('Starting fetch request...');
+    
+    const response = await fetch('http://127.0.0.1:8000/simulation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(body),
+    });
+    
+    console.log('Fetch response received:', response);
+    console.log('Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Server error response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Simulation results:', data);
+    
+    setSimData(data);
+    toast.success("Simulation completed successfully!");
+    
+  } catch (error) {
+    console.error('=== COMPLETE ERROR DETAILS ===');
+    console.error(error);
+    toast.error(`Simulation failed: ${error.message}`);
+
+    // alert(`Simulation failed: ${error.message}`);
   }
+};
+
   const sendparameterData = async () => {
     try {
       // Find ground node (node with value 0)
@@ -362,12 +363,18 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
           break;
         }
       }
+
+      // ✅ Stop simulation if no ground node found
+    if (!groundNode) {
+      toast.error("Please set a ground node before running the simulation.");
+      return; // ❌ Exit function early
+    }
   
       // Convert the components array into a JSON string
       const netstring = JSON.stringify({
         components: components,
-        groundNode: groundNode ? updatedNodes.get(groundNode) : 1 // Use node 1 as default ground if none specified
-      }, null, 2);
+        groundNode: updatedNodes.get(groundNode)  // Use node 1 as default ground if none specified
+    }, null, 2);
   
       const body = { 
         netList: netstring, 
@@ -379,13 +386,16 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         p2n1: p2n1 ? parseInt(p2n1) : null,
         p2n2: p2n2 ? parseInt(p2n2) : null
       };
-      
+      if(!p1n1 || !p1n2 || !p2n1 || !p2n2){
+        toast.error("please select port nodes")
+        return;
+      }
     
   
       console.log('Sending parameter data:', body);
       console.log('Starting fetch request...');
       
-      const response = await fetch('https://circuit-simulator.onrender.com/parameter', {
+      const response = await fetch('http://127.0.0.1:8000/parameter', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -412,7 +422,8 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       // }
       
       setSimData(data);
-      alert('Parameter Evaluated successfully!');
+      toast.success('Parameter Evaluated successfully!')
+      // alert('Parameter Evaluated successfully!');
       
     } catch (error) {
       console.error('=== COMPLETE ERROR DETAILS ===');
@@ -452,7 +463,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
     }
 
     // For AC and Transient analysis, fetch and display images
-    const apiUrl = `https://circuit-simulator.onrender.com/get-images/${analysisType}`;
+    const apiUrl = `http://127.0.0.1:8000/get-images/${analysisType}`;
 
     fetch(apiUrl)
       .then(response => {
@@ -464,12 +475,14 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       .then(data => {
         if (data.error) {
           console.error('Failed to load images:', data.error);
-          alert('Failed to load simulation images. Please check the console for details.');
+          toast.error('Failed to load simulation images. Please check the console for details.');
+          // alert('Failed to load simulation images. Please check the console for details.');
           return;
         }
 
         if (!data || data.length === 0) {
-          alert('No simulation results available. Please run the simulation first.');
+          toast.error('No simulation results available. Please run the simulation first.');
+          // alert('No simulation results available. Please run the simulation first.');
           return;
         }
 
@@ -493,7 +506,7 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
         popup.document.write('<h3>Plots:</h3>');
         data.forEach(item => {
           popup.document.write(`<h4>${item.description}</h4>`);
-          popup.document.write(`<img src="https://circuit-simulator.onrender.com/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
+          popup.document.write(`<img src="http://127.0.0.1:8000/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
         });
 
         popup.document.write('</body></html>');
@@ -501,7 +514,8 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       })
       .catch(error => {
         console.error('Error fetching images:', error);
-        alert('Error fetching simulation images. Please check the console for details.');
+        toast.error('Error fetching simulation images. Please check the console for details.')
+        // alert('Error fetching simulation images. Please check the console for details.');
       });
   }
 

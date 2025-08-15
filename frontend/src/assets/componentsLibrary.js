@@ -85,37 +85,36 @@ export const components = {
                 .attr("stroke-linejoin", "round")
                 .attr("fill", "none");
             
-            // Calculate positions for polarity signs in global coordinates
-            const angleRad = angle * Math.PI / 180;
-            const signOffset = zigzagWidth/2 + 20;
+            // Add polarity markings that rotate with the component
+            // Determine polarity based on line direction (x1,y1) -> (x2,y2)
+            // Left side (closer to x1,y1) gets negative, right side (closer to x2,y2) gets positive
             
-            // Position for minus sign (left side of resistor)
-            const minusX = midX - Math.cos(angleRad) * signOffset;
-            const minusY = midY - Math.sin(angleRad) * signOffset;
+            // Calculate positions for better visibility in all orientations
+            const polarityDistance = 20; // Distance from resistor body
+            const verticalOffset = -8; // Shift upward for better visibility
             
-            // Position for plus sign (right side of resistor)
-            const plusX = midX + Math.cos(angleRad) * signOffset;
-            const plusY = midY + Math.sin(angleRad) * signOffset;
-            
-            // Add polarity markings in global coordinates (not rotated)
-            // Minus sign
-            resistorGroup.append("text")
-                .attr("x", minusX)
-                .attr("y", minusY + 5) // Small offset for better visual alignment
+            rotatedGroup.append("text")
+                .attr("x", -zigzagWidth/2 - polarityDistance)
+                .attr("y", verticalOffset)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
+                .attr("font-size", "18px")
+                .attr("font-weight", "bold")
                 .attr("font-family", "Arial")
-                .attr("fill", "black")
+                .attr("fill", "white")
+                .attr("stroke", "black")
+                .attr("stroke-width", "0.5")
                 .text("-");
             
-            // Plus sign
-            resistorGroup.append("text")
-                .attr("x", plusX)
-                .attr("y", plusY + 5) // Small offset for better visual alignment
+            rotatedGroup.append("text")
+                .attr("x", zigzagWidth/2 + polarityDistance)
+                .attr("y", verticalOffset)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
+                .attr("font-size", "18px")
+                .attr("font-weight", "bold")
                 .attr("font-family", "Arial")
-                .attr("fill", "black")
+                .attr("fill", "white")
+                .attr("stroke", "black")
+                .attr("stroke-width", "0.5")
                 .text("+");
             
             return resistorGroup;
@@ -187,25 +186,36 @@ export const components = {
                 .attr("stroke", "black")
                 .attr("stroke-width", 3);
             
-            // Add polarity markings
+            // Add polarity markings that rotate with the component
+            // Determine polarity based on line direction (x1,y1) -> (x2,y2)
+            // Left plate (closer to x1,y1) gets negative, right plate (closer to x2,y2) gets positive
+            
+            // Calculate positions for better visibility in all orientations
+            const polarityDistance = 20; // Distance from plates
+            const verticalOffset = -8; // Shift upward for better visibility
+            
             rotatedGroup.append("text")
-                .attr("x", -plateGap/2 - 15)
-                .attr("y", 5)
+                .attr("x", -plateGap/2 - polarityDistance)
+                .attr("y", verticalOffset)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
+                .attr("font-size", "18px")
+                .attr("font-weight", "bold")
                 .attr("font-family", "Arial")
-                .attr("fill", "black")
-                .attr("transform", `rotate(${-angle})`)
+                .attr("fill", "white")
+                .attr("stroke", "black")
+                .attr("stroke-width", "0.5")
                 .text("-");
             
             rotatedGroup.append("text")
-                .attr("x", plateGap/2 + 15)
-                .attr("y", 5)
+                .attr("x", plateGap/2 + polarityDistance)
+                .attr("y", verticalOffset)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "16px")
+                .attr("font-size", "18px")
+                .attr("font-weight", "bold")
                 .attr("font-family", "Arial")
-                .attr("fill", "black")
-                .attr("transform", `rotate(${-angle})`)
+                .attr("fill", "white")
+                .attr("stroke", "black")
+                .attr("stroke-width", "0.5")
                 .text("+");
             
             return capacitorGroup;
@@ -276,6 +286,38 @@ export const components = {
                 .attr("stroke", "black")
                 .attr("stroke-width", 2)
                 .attr("fill", "none");
+            
+            // Add polarity markings that rotate with the component
+            // Determine polarity based on line direction (x1,y1) -> (x2,y2)
+            // Left side (closer to x1,y1) gets negative, right side (closer to x2,y2) gets positive
+            
+            // Calculate positions for better visibility in all orientations
+            const polarityDistance = 20; // Distance from inductor body
+            const verticalOffset = -8; // Shift upward for better visibility
+            
+            rotatedGroup.append("text")
+                .attr("x", -coilWidth/2 - polarityDistance)
+                .attr("y", verticalOffset)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "18px")
+                .attr("font-weight", "bold")
+                .attr("font-family", "Arial")
+                .attr("fill", "white")
+                .attr("stroke", "black")
+                .attr("stroke-width", "0.5")
+                .text("-");
+            
+            rotatedGroup.append("text")
+                .attr("x", coilWidth/2 + polarityDistance)
+                .attr("y", verticalOffset)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "18px")
+                .attr("font-weight", "bold")
+                .attr("font-family", "Arial")
+                .attr("fill", "white")
+                .attr("stroke", "black")
+                .attr("stroke-width", "0.5")
+                .text("+");
             
             return inductorGroup;
         }
@@ -456,7 +498,7 @@ AC: {
             .attr("text-anchor", "middle")
             .attr("font-size", "22px")
             .attr("font-family", "Arial")
-            .attr("fill", "black")
+            .attr("fill", "white")
             .text("-");
         
         // Plus sign
@@ -466,7 +508,7 @@ AC: {
             .attr("text-anchor", "middle")
             .attr("font-size", "18px")
             .attr("font-family", "Arial")
-            .attr("fill", "black")
+            .attr("fill", "white")
             .text("+");
         
         return acSourceGroup;
@@ -480,18 +522,14 @@ AC: {
             // Calculate midpoint and dimensions
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
-            
             // Calculate the angle of the line
             const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-            
             // Calculate the total line length
             const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
             const halfLength = lineLength / 2;
-            
             // Diode dimensions
             const triangleWidth = 12;
             const triangleHeight = 10;
-            
             // Create group for diode
             const diodeGroup = svg.append("g")
                 .attr("id", lineId)
@@ -500,11 +538,9 @@ AC: {
                 .on("dblclick", () => handleLineDoubleClick(lineId))
                 .on("mouseover", (e) => showLineCurrent(e, lineId))
                 .on("mouseout", () => hideLineCurrent());
-            
             // Create a group for the rotated diode
             const rotatedGroup = diodeGroup.append("g")
                 .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
-            
             // Draw connecting lines
             rotatedGroup.append("line")
                 .attr("x1", -halfLength)
@@ -513,7 +549,6 @@ AC: {
                 .attr("y2", 0)
                 .attr("stroke", "black")
                 .attr("stroke-width", 2);
-            
             rotatedGroup.append("line")
                 .attr("x1", triangleWidth/2 + 2)
                 .attr("y1", 0)
@@ -521,20 +556,17 @@ AC: {
                 .attr("y2", 0)
                 .attr("stroke", "black")
                 .attr("stroke-width", 2);
-            
             // Draw triangle (anode)
             const trianglePoints = [
                 [-triangleWidth/2, 0],
                 [triangleWidth/2, -triangleHeight/2],
                 [triangleWidth/2, triangleHeight/2]
             ];
-            
             rotatedGroup.append("polygon")
                 .attr("points", trianglePoints.map(d => d.join(",")).join(" "))
                 .attr("fill", "black")
                 .attr("stroke", "black")
                 .attr("stroke-width", 2);
-            
             // Draw cathode line
             rotatedGroup.append("line")
                 .attr("x1", triangleWidth/2)
@@ -543,11 +575,9 @@ AC: {
                 .attr("y2", triangleHeight/2)
                 .attr("stroke", "black")
                 .attr("stroke-width", 3);
-            
             return diodeGroup;
         }
     },
-        
    NpnTransistor:{
         id: 8,
         name: 'NpnTransistor',
@@ -656,12 +686,10 @@ AC: {
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2, x3, y3) => {
         if (!x3 || !y3) {
             return;
-        }
-        
+        }  
         // Create a group element to contain all parts of the PMosfet
         const mosfetGroup = svg.append("g")
             .attr("id", lineId);
-
         // Gate label at (x1,y1)
         mosfetGroup.append("text")
             .attr("x", x1 - 10)  // offset slightly to the left
@@ -671,7 +699,6 @@ AC: {
             .attr("font-family", "Arial")
             .attr("fill", "black")
             .text("G");
-
         // Drain label at (x2,y2)
         mosfetGroup.append("text")
             .attr("x", x2 + 10)  // offset slightly to the right
@@ -681,7 +708,6 @@ AC: {
             .attr("font-family", "Arial")
             .attr("fill", "black")
             .text("D");
-
         // Source label at (x3,y3)
         mosfetGroup.append("text")
             .attr("x", x3 + 10)  // offset slightly to the right
@@ -691,7 +717,6 @@ AC: {
             .attr("font-family", "Arial")
             .attr("fill", "black")
             .text("S");
-
         // PMosfet symbol path
         mosfetGroup.append("path")
             .attr("d", "M " + x1 + " " + y1 + " l " +
@@ -739,11 +764,9 @@ NMosfet: {
         if (!x3 || !y3) {
             return;
         }
-        
         // Create a group element to contain all parts of the NMosfet
         const mosfetGroup = svg.append("g")
-            .attr("id", lineId);
-
+           .attr("id", lineId);
         // Gate label at (x1,y1)
         mosfetGroup.append("text")
             .attr("x", x1 - 10)  // offset slightly to the left
@@ -823,18 +846,14 @@ NMosfet: {
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const radius = 15;
-    
     // Calculate the angle of the line
     const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-    
     // Calculate the total line length
     const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     const halfLength = lineLength / 2;
-    
     // Create a group for the rotated ammeter
     const ammeterGroup = group.append("g")
       .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
-    
     // Draw connecting lines (horizontal in local coordinate system)
     ammeterGroup.append("line")
       .attr("x1", -halfLength)
@@ -843,7 +862,6 @@ NMosfet: {
       .attr("y2", 0)
       .attr("stroke", "black")
       .attr("stroke-width", 2);
-      
     ammeterGroup.append("line")
       .attr("x1", radius)
       .attr("y1", 0)
@@ -851,7 +869,6 @@ NMosfet: {
       .attr("y2", 0)
       .attr("stroke", "black")
       .attr("stroke-width", 2);
-    
     // Draw the ammeter circle
     ammeterGroup.append("circle")
       .attr("cx", 0)
@@ -860,7 +877,6 @@ NMosfet: {
       .attr("fill", "white")
       .attr("stroke", "black")
       .attr("stroke-width", 2);
-    
     // Add 'A' text inside the circle (counter-rotate to keep text upright)
     ammeterGroup.append("text")
       .attr("x", 0)
@@ -872,7 +888,6 @@ NMosfet: {
       .attr("fill", "black")
       .attr("transform", `rotate(${-angle})`)
       .text("A");
-    
     // Add current direction arrow (pointing in the direction of current flow)
     const arrowSize = 8;
     ammeterGroup.append("polygon")
@@ -880,7 +895,6 @@ NMosfet: {
       .attr("fill", "red")
       .attr("stroke", "red")
       .attr("stroke-width", 1);
-    
     // Make the ammeter interactive
     group
       .style("cursor", "pointer")

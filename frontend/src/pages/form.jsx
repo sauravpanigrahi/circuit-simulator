@@ -59,7 +59,7 @@ const Form=()=>{
       const submit = async (e) => {
         e.preventDefault();
         try{
-            const response= await axios.post("https://circuit-simulator.onrender.com/blog/form",form,{
+            const response= await axios.post("http://127.0.0.1:8000/blog/form",form,{
                 withCredentials: true
 
             })
