@@ -49,8 +49,7 @@ const Blog = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("
-https://circuit-simulator.onrender.com/blog/form");
+        const response = await axios.get("https://circuit-simulator.onrender.com/blog/form");
         setPosts(response.data);
       } catch (err) {
         console.error("Error fetching posts:", err);
