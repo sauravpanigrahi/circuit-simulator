@@ -221,6 +221,12 @@ let temp = {};
           component.value = `${value}`;
           temp[key] = `I${components.filter(comp => comp.type === 'Current Source').length + 1}`;
           break;
+          case "TL":
+            component.type = 'Transmission line';
+            component.id = `T${components.filter(comp => comp.type === 'Transmission line').length + 1}`;
+            component.value = `${value}`;
+            temp[key] = `T${components.filter(comp => comp.type === 'Transmission line').length + 1}`;
+            break;  
       default:
         component.type = 'Generic';
         component.id = key;
@@ -463,8 +469,7 @@ const sendSimulationData = async () => {
     }
 
     // For AC and Transient analysis, fetch and display images
-    const apiUrl = `
-https://circuit-simulator.onrender.com/get-images/${analysisType}`;
+    const apiUrl = `https://circuit-simulator.onrender.com/get-images/${analysisType}`;
 
     fetch(apiUrl)
       .then(response => {
@@ -507,8 +512,7 @@ https://circuit-simulator.onrender.com/get-images/${analysisType}`;
         popup.document.write('<h3>Plots:</h3>');
         data.forEach(item => {
           popup.document.write(`<h4>${item.description}</h4>`);
-          popup.document.write(`<img src="
-https://circuit-simulator.onrender.com/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
+          popup.document.write(`<img src="https://circuit-simulator.onrender.com/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
         });
 
         popup.document.write('</body></html>');

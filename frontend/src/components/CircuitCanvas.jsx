@@ -71,7 +71,9 @@ const CircuitCanvas = () => {
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
-
+  const use = () => {
+    navigate('/use');
+  };
   // Apply theme to body
   useEffect(() => {
     if (isDarkMode) {
@@ -689,17 +691,17 @@ const CircuitCanvas = () => {
     if (!simData || !simData.current || !temp[lineId]) {
       return "No data";
     }
-
+  
     const currentKey = `I_${temp[lineId]}`;
     const currentValue = simData.current[currentKey];
-
+  
     if (currentValue === undefined || currentValue === null) {
       return "No data";
     }
-
+  
     const numericValue = parseFloat(currentValue);
     const absoluteValue = Math.abs(numericValue);
-
+  
     if (absoluteValue >= 1) {
       return `${absoluteValue.toFixed(3)} A`;
     } else if (absoluteValue >= 0.001) {
@@ -710,39 +712,39 @@ const CircuitCanvas = () => {
       return `${absoluteValue.toExponential(3)} A`;
     }
   };
-
+  
   const getVoltageValue = (lineId, simData, temp, updatedNodes) => {
-    if (!simData || !simData.voltages || !temp[lineId]) {
-      return "No data";
-    }
+  if (!simData || !simData.voltages || !temp[lineId]) {
+    return "No data";
+  }
 
-    const lineParts = lineId.split('_');
-    const node1Id = lineParts[1];
-    const node2Id = lineParts[2];
+  const lineParts = lineId.split('_');
+  const node1Id = lineParts[1];
+  const node2Id = lineParts[2];
 
-    const node1Num = updatedNodes.get(node1Id);
-    const node2Num = updatedNodes.get(node2Id);
+  const node1Num = updatedNodes.get(node1Id);
+  const node2Num = updatedNodes.get(node2Id);
 
-    if (node1Num === undefined || node2Num === undefined) {
-      return "No data";
-    }
+  if (node1Num === undefined || node2Num === undefined) {
+    return "No data";
+  }
 
-    const v1 = simData.voltages[`V_node_${node1Num}`] || 0;
-    const v2 = simData.voltages[`V_node_${node2Num}`] || 0;
+  const v1 = parseFloat(simData.voltages[`V_node_${node1Num}`] || 0);
+  const v2 = parseFloat(simData.voltages[`V_node_${node2Num}`] || 0);
 
-    const voltageDifference = parseFloat(v1) - parseFloat(v2);
-    const absoluteVoltage = Math.abs(voltageDifference);
+  const voltageDifference = v1 - v2;
+  const absoluteVoltage = Math.abs(voltageDifference);
 
-    if (absoluteVoltage >= 1) {
-      return `${absoluteVoltage.toFixed(3)} V`;
-    } else if (absoluteVoltage >= 0.001) {
-      return `${(absoluteVoltage * 1000).toFixed(3)} mV`;
-    } else if (absoluteVoltage >= 0.000001) {
-      return `${(absoluteVoltage * 1000000).toFixed(3)} µV`;
-    } else {
-      return `${absoluteVoltage.toExponential(3)} V`;
-    }
-  };
+  if (absoluteVoltage >= 1) {
+    return `${absoluteVoltage.toFixed(3)} V`;
+  } else if (absoluteVoltage >= 0.001) {
+    return `${(absoluteVoltage * 1000).toFixed(3)} mV`;
+  } else if (absoluteVoltage >= 0.000001) {
+    return `${(absoluteVoltage * 1000000).toFixed(3)} µV`;
+  } else {
+    return `${absoluteVoltage.toExponential(3)} V`;
+  }
+};
 
   const renderZParameterMatrix = () => {
     if (!parametervalue || !parametervalue.parameters || !parametervalue.parameters.numeric) return null;
@@ -996,6 +998,9 @@ const CircuitCanvas = () => {
           <button className="back-btn" onClick={() => navigate("/")}>
             ⬅ Back to Home
           </button>
+          <button className="btn back-btn btn-primary px-4 py-2  rounded fw-semibold" onClick={use}>
+                    How to use
+                  </button>
         </div>
       </div>
       <div className="circuit-layout">

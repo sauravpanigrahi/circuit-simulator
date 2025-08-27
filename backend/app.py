@@ -1,5 +1,6 @@
 import traceback
 from flask import Flask, request, jsonify, url_for, send_from_directory
+from databse.db import connect_to_mongo,blogs_collection  
 import json  # Import the json module
 import numpy as np  # For numerical operations
 from flask_cors import CORS
@@ -20,6 +21,11 @@ import logging
 
 # Load environment variables from .env file
 load_dotenv()
+# Only load .env if not in production
+if os.getenv("NODE_ENV") != "production":
+    from dotenv import load_dotenv
+    load_dotenv()
+
 app = FastAPI()
 # Configure logging
 logging.basicConfig(
@@ -29,6 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
+
 
 # Configure CORS properly
 CORS(app, resources={
@@ -45,7 +52,7 @@ CORS(app, resources={
         "max_age": 3600
     }
 })
-
+db,blogs_collection=connect_to_mongo()
 # Set the default port to 8000 if not specified in the environment
 port = int(os.environ.get('PORT', 8000))
 
@@ -616,34 +623,29 @@ def parameter():
             "traceback": traceback.format_exc(),
             "status": "error"
         }), 500
-posts_list=[]    
+   
 @app.route('/blog/form', methods=['POST', 'GET'])
 def blog_posts():
     if request.method == 'POST':
         data = request.get_json()
-
         if not data:
             return jsonify({"error": "No data provided"}), 400
-
         # Example: Add a timestamp if not provided
         if "date" not in data:
             from datetime import datetime
             data["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        posts_list.append(data)
+        result=blogs_collection.insert_one(data)
+        data["_id"] = str(result.inserted_id) 
         return jsonify({
             "message": "Post added successfully",
             "post": data
         }), 201
-
     elif request.method == 'GET':
-        return jsonify(posts_list), 200
-
-
-# @app.route('/blog',methods=['GET'])
-# def posts():
-#     return jsonify(posts_list),202
+        # ✅ Fetch all blogs from MongoDB
+        posts = list(blogs_collection.find({}, {"_id": 0}))  # exclude _id
+        return jsonify(posts), 200
 
 if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")
+    connect_to_mongo()
     app.run(host="0.0.0.0", port=port, debug=True)

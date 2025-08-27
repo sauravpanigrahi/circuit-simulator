@@ -907,106 +907,82 @@ NMosfet: {
   }
 },
    // Replace the Voltmeter definition with:
-   Voltmeter: {
+    Voltmeter: {
     id: "13",
     name: "Voltmeter",
-    component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
-        // Calculate midpoint and dimensions
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-        const radius = 15;
-        
-        // Calculate the angle of the line
-        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-        
-        // Calculate the total line length
-        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-        const halfLength = lineLength / 2;
-        
-        // Create group for voltmeter
-        const voltmeterGroup = svg.append("g")
-            .attr("id", lineId)
-            .style("cursor", "pointer")
-            .on("click", () => handleLineClick(lineId))
-            .on("dblclick", (event) => {
-                event.stopPropagation();
-                handleLineDoubleClick(lineId, "ideal");
-            })
-            .on("mouseover", (event) => showLineCurrent(event, lineId))
-            .on("mouseout", () => hideLineCurrent());
-
-        // Create a group for the rotated voltmeter
-        const rotatedGroup = voltmeterGroup.append("g")
-            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
-
-        // Draw connecting lines (horizontal in local coordinate system)
-        rotatedGroup.append("line")
-            .attr("x1", -halfLength)
-            .attr("y1", 0)
-            .attr("x2", -radius)
-            .attr("y2", 0)
-            .attr("stroke", "black")
-            .attr("stroke-width", 2);
-
-        rotatedGroup.append("line")
-            .attr("x1", radius)
-            .attr("y1", 0)
-            .attr("x2", halfLength)
-            .attr("y2", 0)
-            .attr("stroke", "black")
-            .attr("stroke-width", 2);
-
-        // Draw voltmeter circle
-        rotatedGroup.append("circle")
-            .attr("cx", 0)
-            .attr("cy", 0)
-            .attr("r", radius)
-            .attr("fill", "white")
-            .attr("stroke", "#00AA00")
-            .attr("stroke-width", 2);
-
-        // Add "V" symbol (counter-rotate to keep text upright)
-        rotatedGroup.append("text")
-            .attr("x", 0)
-            .attr("y", 5)
-            .attr("text-anchor", "middle")
-            .attr("font-family", "Arial, sans-serif")
-            .attr("font-size", "14px")
-            .attr("font-weight", "bold")
-            .attr("fill", "#00AA00")
-            .attr("transform", `rotate(${-angle})`)
-            .text("V");
-
-        // Add voltage polarity indicators (+ and -)
-        const polarityOffset = 6;
-        
-        // Plus sign on the left side
-        rotatedGroup.append("text")
-            .attr("x", -polarityOffset)
-            .attr("y", -polarityOffset)
-            .attr("text-anchor", "middle")
-            .attr("font-family", "Arial, sans-serif")
-            .attr("font-size", "10px")
-            .attr("font-weight", "bold")
-            .attr("fill", "#00AA00")
-            .attr("transform", `rotate(${-angle})`)
-            .text("+");
-
-        // Minus sign on the right side
-        rotatedGroup.append("text")
-            .attr("x", polarityOffset)
-            .attr("y", -polarityOffset)
-            .attr("text-anchor", "middle")
-            .attr("font-family", "Arial, sans-serif")
-            .attr("font-size", "10px")
-            .attr("font-weight", "bold")
-            .attr("fill", "#00AA00")
-            .attr("transform", `rotate(${-angle})`)
-            .text("−");
-
-        return voltmeterGroup;
+    measurementType: "voltage",
+    resistance: 1e12, // Very high resistance
+    
+    component: (svg, lineId, handleLineClick, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2, simData, temp, updatedNodes,getVoltageValue) => {
+      // Calculate midpoint and dimensions
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      const radius = 15;
+      
+      const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+      const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      const halfLength = lineLength / 2;
+      
+      const voltmeterGroup = svg.append("g")
+        .attr("id", lineId)
+        .style("cursor", "pointer")
+        .on("click", () => handleLineClick(lineId))
+        .on("dblclick", (event) => {
+          event.stopPropagation();
+          handleLineDoubleClick(lineId, "ideal");
+        })
+        .on("mouseover", (event) => {
+          // CRITICAL: Get voltage value and show it
+          const voltageValue = getVoltageValue(lineId, simData, temp, updatedNodes);
+          console.log(`Voltmeter ${lineId} reading: ${voltageValue}`); // Debug log
+          showLineCurrent(event, lineId, voltageValue);
+        })
+        .on("mouseout", () => hideLineCurrent());
+  
+      const rotatedGroup = voltmeterGroup.append("g")
+        .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+  
+      // Draw lines
+      rotatedGroup.append("line")
+        .attr("x1", -halfLength)
+        .attr("y1", 0)
+        .attr("x2", -radius)
+        .attr("y2", 0)
+        .attr("stroke", "black")
+        .attr("stroke-width", 2);
+  
+      rotatedGroup.append("line")
+        .attr("x1", radius)
+        .attr("y1", 0)
+        .attr("x2", halfLength)
+        .attr("y2", 0)
+        .attr("stroke", "black")
+        .attr("stroke-width", 2);
+  
+      // Draw circle
+      rotatedGroup.append("circle")
+        .attr("cx", 0)
+        .attr("cy", 0)
+        .attr("r", radius)
+        .attr("fill", "white")
+        .attr("stroke", "#00AA00")
+        .attr("stroke-width", 2);
+  
+      // Add V symbol
+      rotatedGroup.append("text")
+        .attr("x", 0)
+        .attr("y", 5)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "Arial, sans-serif")
+        .attr("font-size", "14px")
+        .attr("font-weight", "bold")
+        .attr("fill", "#00AA00")
+        .attr("transform", `rotate(${-angle})`)
+        .text("V");
+  
+      return voltmeterGroup;
     }
-},
+  },
 VCVS: {
     id: "14",
     name: "VCVS",
@@ -1426,6 +1402,92 @@ CS: {
             .attr("fill", "black");
 
         return currentSourceGroup;
+    }
+},
+TL: {
+    id: 3,
+    name: 'TL',
+    component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
+        // Calculate midpoint and dimensions
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        // Calculate the angle of the line
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        
+        // Calculate the total line length
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+        
+        // Transmission line dimensions
+        const tlLength =60; // Length of the transmission line section
+        const lineSpacing = 5; // Distance between the two parallel lines
+        const numConnectors = 10; // Number of diagonal connecting lines
+        const connectorSpacing = tlLength / numConnectors;
+        
+        // Create group for transmission line
+        const tlGroup = svg.append("g")
+            .attr("id", lineId)
+            .style("cursor", "pointer")
+            .on("click", () => setSelectedLine(lineId))
+            .on("dblclick", () => handleLineDoubleClick(lineId))
+            .on("mouseover", (e) => showLineCurrent(e, lineId))
+            .on("mouseout", () => hideLineCurrent());
+        
+        // Create a group for the rotated transmission line
+        const rotatedGroup = tlGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+        
+        // Draw connecting lines (horizontal in local coordinate system)
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -tlLength/2)
+            .attr("y2", 0)
+            .attr("stroke", "orange")
+            .attr("stroke-width", 2);
+        
+        rotatedGroup.append("line")
+            .attr("x1", tlLength/2)
+            .attr("y1", 0)
+            .attr("x2", halfLength)
+            .attr("y2", 0)
+            .attr("stroke", "pink")
+            .attr("stroke-width", 2);
+        
+        // Draw the two parallel lines of the transmission line
+        rotatedGroup.append("line")
+            .attr("x1", -tlLength/2)
+            .attr("y1", -lineSpacing/2)
+            .attr("x2", tlLength/2)
+            .attr("y2", -lineSpacing/2)
+            .attr("stroke", "red")
+            .attr("stroke-width", 2);
+        
+        rotatedGroup.append("line")
+            .attr("x1", -tlLength/2)
+            .attr("y1", lineSpacing/2)
+            .attr("x2", tlLength/2)
+            .attr("y2", lineSpacing/2)
+            .attr("stroke", "blue")
+            .attr("stroke-width", 2);
+        
+        // Draw the diagonal connecting lines (all slanting the same direction)
+        for (let i = 0; i < numConnectors; i++) {
+            const x = -tlLength/2 + i * connectorSpacing;
+            const nextX = x + connectorSpacing * 0.8; // Diagonal length
+            
+            // All diagonal lines go from bottom-left to top-right
+            rotatedGroup.append("line")
+                .attr("x1", x)
+                .attr("y1", lineSpacing/2+10)
+                .attr("x2", nextX)
+                .attr("y2", lineSpacing/2)
+                .attr("stroke", "blue")
+                .attr("stroke-width", 2);
+        }
+        
+        return tlGroup;
     }
 }
 }

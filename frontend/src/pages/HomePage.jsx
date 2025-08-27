@@ -120,6 +120,8 @@ const HomePage = () => {
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" 
         rel="stylesheet" 
       />
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+
       
       {/* Animated Sine Wave Background */}
       <div className="sine-wave-background">
@@ -153,7 +155,7 @@ const HomePage = () => {
             href="#"
             onClick={(e) => e.preventDefault()}
           >
-            <span className="logo-icon me-2">⚡</span>
+            <span className="logo-icon me-2"><i className="fas fa-microchip me-2"></i></span>
             <span className="logo-text">CircuitSim</span>
           </a>
           

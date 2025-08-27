@@ -18,7 +18,9 @@ const Blog = () => {
   const form = () => {
     navigate('/blog/form');
   };
-
+  const use = () => {
+    navigate('/use');
+  };
   // Initialize theme from localStorage
   useEffect(() => {
     // In your actual code, uncomment the next two lines:
@@ -76,10 +78,8 @@ const Blog = () => {
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
         rel="stylesheet"
       />
-      {/* <link
-        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
-        rel="stylesheet"
-      /> */}
+                  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+
 
 
       <div className="theme-transition">
@@ -87,7 +87,7 @@ const Blog = () => {
         <header className="blog-header">
           <div>
             <div className="circuit-navbar">
-              <span className="navbar-brand logo-pulse logo-text fw-bold fs-3">CircuitSim</span>
+              <span className="navbar-brand logo-pulse logo-text fw-bold fs-3"><i className="fas fa-microchip me-2"></i>CircuitSim</span>
               <div className="navbar-controls d-flex align-items-center gap-3">
                 <button 
                   className="btn btn-outline-primary btn-sm rounded-pill"
@@ -97,6 +97,9 @@ const Blog = () => {
                   {isDarkMode ? "☀️" : "🌙"}
                 </button>
                 <button className="back-btn" onClick={back}>⬅ Back to Home</button>
+                <button className="btn back-btn btn-primary px-4 py-2  rounded fw-semibold" onClick={use}>
+                    How to use
+                  </button>
               </div>
             </div>
           </div>
@@ -108,13 +111,18 @@ const Blog = () => {
               
               {/* Hero Section */}
               <div className="text-center mb-5 fade-in">
-                <h2 className="display-5 fw-bold mb-3">
-                  Engineering <span className="logo-gradient">Insights</span>
-                </h2>
+                <div className="d-flex justify-content-center align-items-center mb-3 gap-3">
+                  <h2 className="display-5 fw-bold m-0">
+                    Engineering <span className="logo-gradient">Insights</span>
+                  </h2>
+                 
+                </div>
+
                 <p className="lead text-muted mb-4">
                   Discover the latest in circuit simulation, tutorials, and engineering excellence
                 </p>
               </div>
+
 
               {/* Add Post Card */}
               <div className="row justify-content-center mb-5">

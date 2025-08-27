@@ -1,0 +1,412 @@
+body {
+    background: #1a1f36;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    transition: all 0.3s ease;
+}
+
+.hero-welcome {
+    background: #1a1f36;
+    color: white;
+    min-height: 90vh;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.glass-nav {
+    background: rgba(26, 31, 54, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 0;
+    transition: all 0.3s ease;
+}
+
+.brand-logo {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.glass-btn {
+    background: #3b82f6;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.glass-btn:hover {
+    background: #2563eb;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.theme-btn {
+    background: #f59e0b;
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-btn:hover {
+    background: #d97706;
+    color: white;
+    transform: rotate(180deg);
+}
+
+.welcome-card {
+    background: rgba(59, 130, 246, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 2rem 0;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.step-container {
+    background: #1a1f36;
+    padding: 4rem 0;
+    transition: all 0.3s ease;
+}
+
+.step-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+    height: 100%;
+    color: white;
+}
+
+.step-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.step-number {
+    background: #3b82f6;
+    color: white;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: bold;
+    margin: 0 auto 1rem;
+
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: block;
+    opacity: 0.8;
+}
+
+.quick-start-section {
+    background: rgba(59, 130, 246, 0.1);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 4rem 0;
+    transition: all 0.3s ease;
+}
+
+.navigation-guide {
+    background: #1a1f36;
+    padding: 4rem 0;
+    transition: all 0.3s ease;
+}
+
+.nav-item-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+    height: 100%;
+    color: white;
+}
+
+.nav-item-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.cta-section {
+    background: #1a1f36;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 5rem 0;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.start-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 0 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.start-btn:hover {
+    transform: translateY(-2px);
+    background: #2563eb;
+    color: white;
+}
+
+.help-card {
+    background: rgba(59, 130, 246, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.help-card:hover {
+    transform: translateY(-3px);
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.alert {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+}
+
+.text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.text-primary {
+    color: #3b82f6 !important;
+}
+
+.text-success {
+    color: #10b981 !important;
+}
+
+.text-warning {
+    color: #f59e0b !important;
+}
+
+.text-info {
+    color: #06b6d4 !important;
+}
+
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: white;
+}
+
+/* Light Theme Styles */
+.light-theme body {
+    background: #ffffff;
+    color: #374151;
+}
+
+.light-theme .hero-welcome {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    color: #374151;
+}
+
+.light-theme .glass-nav {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .brand-logo {
+    color: #1f2937;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.light-theme .glass-btn {
+    background: #6366f1;
+    color: white;
+}
+
+.light-theme .glass-btn:hover {
+    background: #4f46e5;
+    color: white;
+}
+
+.light-theme .theme-btn {
+    background: #f59e0b;
+    color: white;
+}
+
+.light-theme .theme-btn:hover {
+    background: #d97706;
+    color: white;
+}
+
+.light-theme .welcome-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #374151;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.light-theme .step-container {
+    background: #f8fafc;
+}
+
+.light-theme .step-card {
+    background: white;
+    backdrop-filter: none;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #374151;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.light-theme .step-card:hover {
+    background: #ffffff;
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+}
+
+.light-theme .step-number {
+    background: #6366f1;
+    color: white;
+}
+
+.light-theme .quick-start-section {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    backdrop-filter: none;
+    border: none;
+    color: white;
+}
+
+.light-theme .navigation-guide {
+    background: #ffffff;
+}
+
+.light-theme .nav-item-card {
+    background: white;
+    backdrop-filter: none;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.light-theme .nav-item-card:hover {
+    background: #ffffff;
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+}
+
+.light-theme .cta-section {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    border: none;
+    color: white;
+}
+
+.light-theme .start-btn {
+    background: #6366f1;
+    color: white;
+}
+
+.light-theme .start-btn:hover {
+    background: #4f46e5;
+    color: white;
+}
+
+.light-theme .help-card {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    backdrop-filter: none;
+    border: none;
+    color: white;
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+}
+
+.light-theme .help-card:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+.light-theme .alert {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #374151;
+}
+
+.light-theme .text-muted {
+    color: #6b7280 !important;
+}
+
+.light-theme .text-primary {
+    color: #6366f1 !important;
+}
+
+.light-theme .text-success {
+    color: #059669 !important;
+}
+
+.light-theme .text-warning {
+    color: #d97706 !important;
+}
+
+.light-theme .text-info {
+    color: #0891b2 !important;
+}
+
+.light-theme h1, 
+.light-theme h2, 
+.light-theme h3, 
+.light-theme h4, 
+.light-theme h5, 
+.light-theme h6 {
+    color: #1f2937;
+}
+
+.light-theme .hero-welcome h1 {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}

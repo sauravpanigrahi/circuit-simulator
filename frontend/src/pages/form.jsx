@@ -93,7 +93,7 @@ const Form=()=>{
         <header className="blog-header">
           <div>
             <div className="circuit-navbar">
-              <span className="navbar-brand logo-pulse logo-text fw-bold fs-3">CircuitSim</span>
+              <span className="navbar-brand logo-pulse logo-text fw-bold fs-3"><i className="fas fa-microchip me-2"></i>CircuitSim</span>
               <div className="navbar-controls d-flex align-items-center gap-3">
                 <button 
                   className="btn btn-outline-primary btn-sm rounded-pill"
@@ -144,7 +144,7 @@ const Form=()=>{
               </div>
 
               <div className="form-group">
-                <label htmlFor="author" className="form-label field-label" style={{color: isDarkMode ? "white" : "black"}}>Author Name (optional)</label>
+                <label htmlFor="author" className="form-label field-label" style={{color: isDarkMode ? "white" : "black"}}>Author Name</label>
                 <input
                   id="author"
                   type="text"
