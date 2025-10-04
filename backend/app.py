@@ -15,10 +15,9 @@ from ac_analysis import run_ac_analysis
 from dc_analysis import run_dc_analysis
 from Z_parameter import run_z_parameter
 from Y_parameter import run_y_parameter
+from S_parameter import run_s_parameter
 import os
 from dotenv import load_dotenv
-import logging
-
 # Load environment variables from .env file
 load_dotenv()
 # Only load .env if not in production
@@ -112,9 +111,9 @@ def generate_netlist():
             raise HTTPException(status_code=404, detail="netlist.txt not found")
         with open(netlist_path, "r") as f:
             file_content = f.read()
-        circuit = Circuit()
-        circuit.add(file_content)
-        netlist = circuit.netlist()
+        # circuit = Circuit()
+        # circuit.add(file_content)
+        netlist = file_content
         logger.info(f"Generated netlist: {netlist}")
 
         return {"netlist": netlist}
@@ -144,8 +143,6 @@ def simulate():
         ckt_data = request.get_json(force=True)
         if ckt_data is None:
             return jsonify({"error": "Invalid or missing JSON"}), 400
-
-
         if not ckt_data:
             raise ValueError("No JSON data received")
 
@@ -225,6 +222,7 @@ def simulation():
             depnode4 = ''
             depVoltage=''
             phase=''
+           
             # Handle value extraction properly
             raw_value = comp.get('value', '')
             
@@ -238,6 +236,7 @@ def simulation():
                 depnode4 = raw_value.get('dependentNode2', '')
                 depVoltage=raw_value.get('Vcontrol','')
                 phase=raw_value.get('phase','')
+                
                 logger.info(f"Extracted from dict - value: {value}, depnode3: {depnode3}, depnode4: {depnode4}")
             else:
                 # This is a regular component
@@ -247,13 +246,14 @@ def simulation():
                 depnode4 = comp.get('dependentnode2', '')
                 depVoltage=comp.get('Vcontrol','')
                 phase=comp.get('phase',0)
+                
             # Ensure value is a string/number, not an object
             if isinstance(value, dict):
                 logger.error(f"Value is still a dict for component {id_}: {value}")
                 value = str(value)  # Fallback to string representation
             
             # Generate the netlist line based on component type
-            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS','Current Source' ,'Generic']:
+            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS','Current Source','Generic']:
                 if type_prefix == 'DC Source':
                     line = f"{id_} {node2} {node1} {value}\n"
                 elif type_prefix == 'AC Source':
@@ -264,9 +264,7 @@ def simulation():
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid phase for {id_}, defaulting to 0")
                         phase = 0
-
                     line = f"{id_} {node1} {node2} AC {value} {phase}\n"
-    
                 elif type_prefix == 'VCVS':
                     # VCVS format: E<n> <+node> <-node> <+control> <-control> <Voltage gain>
                     line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
@@ -282,7 +280,7 @@ def simulation():
                 elif type_prefix == 'CCCS':
                     # VCCS format: G<n> <+node> <-node> <+control> <Current gain>
                     line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
-                    logger.info(f"Generated CCCS line: {line.strip()}")
+                    logger.info(f"Generated CCCS line: {line.strip()}")    
                 else:
                     line = f"{id_} {node1} {node2} {value}\n"
                 
@@ -373,6 +371,11 @@ def get_images(analysis_type):
                 ("ac_analysis_current_time_domain.png", "Current Time Domain"),
                 # ("ac_analysis_combined_time_domain.png", "Combined Time Domain")
             ],
+            's': [
+                ("s_parameters_individual.png", "S-Parameters (Individual Subplots)"),
+                ("s_parameters_combined.png", "S-Parameters (Combined Plot)"),
+                ("s_parameters_phase.png", "S-Parameters Phase")
+            ],
             'transient': [
                 ("transient_analysis-voltage.png", "Transient Voltage"),
                 ("transient_analysis-current.png", "Transient Current")
@@ -419,9 +422,10 @@ def serve_static(filename):
 @app.route('/parameter', methods=['GET', 'POST', 'OPTIONS'])
 def parameter():
     if request.method == 'OPTIONS':
-        return '', 200
-        
-    try:
+        return '', 200 
+    
+    try:  # OUTER TRY (wraps whole function)
+
         if not request.is_json:
             logger.warning("Request is not JSON")
             return jsonify({"error": "Request must be JSON"}), 415
@@ -436,6 +440,7 @@ def parameter():
             logger.warning("Netlist is empty")
             return jsonify({"error": "Netlist is empty"}), 400
 
+        # Parse netlist
         try:
             netlist = json.loads(netlist_str)
         except json.JSONDecodeError as e:
@@ -451,171 +456,265 @@ def parameter():
         numberOfNodes = ckt_data.get("numberNodes", 0)
         parameterType = ckt_data.get("parameterType", "z").lower()
         groundNode = netlist.get("groundNode")
+
+        # Parse ports safely
         try:
-            p1n1 = int(ckt_data.get("p1n1", 0))
+            p1n1 = str(ckt_data.get("p1n1", "1"))
         except (ValueError, TypeError):
-            p1n1 = 0
-            logger.warning("Invalid p1n1 value, defaulting to 0")
+            p1n1 = "1"
+            logger.warning("Invalid p1n1 value, defaulting to 1")
 
         try:
-            p1n2 = int(ckt_data.get("p1n2", 0))
+            p1n2 = str(ckt_data.get("p1n2", "0"))
         except (ValueError, TypeError):
-            p1n2 = 0
+            p1n2 = "0"
             logger.warning("Invalid p1n2 value, defaulting to 0")
 
         try:
-            p2n1 = int(ckt_data.get("p2n1", 0))
+            p2n1 = str(ckt_data.get("p2n1", "2"))
         except (ValueError, TypeError):
-            p2n1 = 0
-            logger.warning("Invalid p2n1 value, defaulting to 0")
+            p2n1 = "2"
+            logger.warning("Invalid p2n1 value, defaulting to 2")
 
         try:
-            p2n2 = int(ckt_data.get("p2n2", 0))
+            p2n2 = str(ckt_data.get("p2n2", "0"))
         except (ValueError, TypeError):
-            p2n2 = 0
+            p2n2 = "0"
             logger.warning("Invalid p2n2 value, defaulting to 0")
 
         logger.info(f"Parsed ports → p1n1: {p1n1}, p1n2: {p1n2}, p2n1: {p2n1}, p2n2: {p2n2}")
 
-
-
-
+        # Parse frequencies
         try:
             frequency = float(ckt_data.get("frequency", 50))
+            startfrequency = float(ckt_data.get("startingfrequency", 0.1))
+            endfrequency = float(ckt_data.get("endfrequency", 1))
+            logger.info(f"Start frequency: {startfrequency}")
+            logger.info(f"End frequency: {endfrequency}")
         except (ValueError, TypeError):
             frequency = 50
-            logger.warning("Invalid frequency value, defaulting to 50")
+            startfrequency = 0.1
+            endfrequency = 1
+            logger.warning("Invalid frequency values, using defaults")
 
-        # Process components
+        # Build netlist text
         for comp in components:
             type_prefix = comp.get('type', '')
             id_ = comp.get('id', '')
             node1 = comp.get('node1', '')
             node2 = comp.get('node2', '')
-            
-            # Initialize dependent nodes with empty strings
+
             depnode3 = ''
             depnode4 = ''
-            depVoltage=''
-            phase=''
-            # Handle value extraction properly
+            depVoltage = ''
+            phase = ''
+            impedance = ''
+            electrical_length = ''
+            length = ''
+
             raw_value = comp.get('value', '')
-            
-            # Debug log to see what we're receiving
+
             logger.info(f"Processing component {id_}: type={type_prefix}, raw_value={raw_value}")
-            
+
             if isinstance(raw_value, dict):
-                # This is a dependent source with nested structure
                 value = raw_value.get('value', '')
                 depnode3 = raw_value.get('dependentNode1', '')
                 depnode4 = raw_value.get('dependentNode2', '')
-                depVoltage=raw_value.get('Vcontrol','')
-                phase=raw_value.get('phase','')
-                logger.info(f"Extracted from dict - value: {value}, depnode3: {depnode3}, depnode4: {depnode4}")
+                depVoltage = raw_value.get('Vcontrol', '')
+                phase = raw_value.get('phase', '')
+                impedance = raw_value.get('impedance', '50')
+                electrical_length = raw_value.get('electrical_length', '90')
+                length = raw_value.get('length', '')
             else:
-                # This is a regular component
                 value = raw_value
-                # Try to get dependent nodes from component level (fallback)
                 depnode3 = comp.get('dependentnode1', '')
                 depnode4 = comp.get('dependentnode2', '')
-                depVoltage=comp.get('Vcontrol','')
-                phase=comp.get('phase','')
-            # Ensure value is a string/number, not an object
+                depVoltage = comp.get('Vcontrol', '')
+                phase = comp.get('phase', '0')
+                impedance = comp.get('impedance', '50')
+                electrical_length = comp.get('electrical_length', '90')
+                length = comp.get('length', '')
+
             if isinstance(value, dict):
                 logger.error(f"Value is still a dict for component {id_}: {value}")
-                value = str(value)  # Fallback to string representation
-            
-            # Generate the netlist line based on component type
-            if type_prefix in ['AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor', 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet', 'VCVS', 'VCCS','CCVS','CCCS','Current Source' ,'Generic']:
+                value = str(value)
+
+            if type_prefix in [
+                'AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor',
+                'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet',
+                'VCVS', 'VCCS', 'CCVS', 'CCCS', 'Current Source', 'Transmission line',
+                'Open Stub', 'Short Stub', 'Generic'
+            ]:
                 if type_prefix == 'DC Source':
                     line = f"{id_} {node2} {node1} {value}\n"
                 elif type_prefix == 'AC Source':
-                    line = f"{id_} {node1} {node2} AC {value} {phase}\n"    
+                    line = f"{id_} {node1} {node2} AC {value} {phase}\n"
                 elif type_prefix == 'VCVS':
-                    # VCVS format: E<n> <+node> <-node> <+control> <-control> <Voltage gain>
                     line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
-                    logger.info(f"Generated VCVS line: {line.strip()}")
                 elif type_prefix == 'VCCS':
-                    # VCCS format: G<n> <+node> <-node> <+control> <-control> <transadmitance>
                     line = f"{id_} {node1} {node2} {depnode3} {depnode4} {value}\n"
-                    logger.info(f"Generated VCCS line: {line.strip()}")
                 elif type_prefix == 'CCVS':
-                    # VCVS format: E<n> <+node> <-node> <+control> <-control> <transimpedance>
                     line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
-                    logger.info(f"Generated CCVS line: {line.strip()}")
                 elif type_prefix == 'CCCS':
-                    # VCCS format: G<n> <+node> <-node> <+control> <Current gain>
                     line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
-                    logger.info(f"Generated CCCS line: {line.strip()}")
+                elif type_prefix == 'Transmission line':
+                    line = f"{id_} {node1} {node2} {electrical_length} {impedance}\n"
+                elif type_prefix == 'Open Stub':
+                    line = f"OS{id_[-1]} {node1} {node2} {electrical_length} {impedance}\n"
+                elif type_prefix == 'Short Stub':
+                    line = f"SS{id_[-1]} {node1} {node2} {electrical_length} {impedance}\n"
                 else:
                     line = f"{id_} {node1} {node2} {value}\n"
-                
+
                 cctt += line
                 logger.info(f"Added to netlist: {line.strip()}")
 
-        # Write netlist to file
-        netlist_filename = 'netlist.txt'
+        # Save netlist file
         try:
-            with open(netlist_filename, 'w') as file:
+            with open('netlist.txt', 'w') as file:
                 file.write(cctt)
             logger.info("Netlist written to file successfully")
         except Exception as e:
             logger.error(f"Error writing netlist to file: {str(e)}")
             return jsonify({"error": f"Error writing netlist to file: {str(e)}"}), 500
 
-        try:
-            
-    # Run the appropriate analysis
-            if parameterType == "z":
-                logger.info("Starting Z-parameter")
-                z_params = run_z_parameter(frequency, p1n1, p1n2, p2n1, p2n2)
-                logger.info("Z-parameter analysis completed successfully")
-                return jsonify({
-                    "parameters": {
-                        "symbolic": z_params["symbolic"],
-                        "numeric": {
-                            "Z11": str(z_params["numeric"]["Z11"]),
-                            "Z12": str(z_params["numeric"]["Z12"]),
-                            "Z21": str(z_params["numeric"]["Z21"]),
-                            "Z22": str(z_params["numeric"]["Z22"])
-                        }
-                    },
-                    "parameter_type": "z",
-                    "status": "success"
-                })
-
-            elif parameterType == "y":
-                logger.info("Starting Y-parameter")
-                logger.info(f"Frequency: {frequency}")
-                y_params = run_y_parameter(frequency,p1n1, p1n2, p2n1, p2n2)
-
-                logger.info("Y-parameter analysis completed successfully")
-                return jsonify({
-                    "parameters": {
-                        "symbolic": y_params["symbolic"],
-                        "numeric": {
-                            "Y11": str(y_params["numeric"]["Y11"]),
-                            "Y12": str(y_params["numeric"]["Y12"]),
-                            "Y21": str(y_params["numeric"]["Y21"]),
-                            "Y22": str(y_params["numeric"]["Y22"])
-                        }
-                    },
-                    "parameter_type": "y",
-                    "status": "success"
-                })
-
-            else:
-                raise ValueError(f"Unsupported parameter type: {parameterType}")
-
-        except Exception as e:
-            logger.error(f"Error during {parameterType} analysis: {str(e)}")
-            logger.error(traceback.format_exc())
+        # Run the appropriate analysis
+        if parameterType == "z":
+            logger.info("Starting Z-parameter")
+            z_params = run_z_parameter(frequency, p1n1, p1n2, p2n1, p2n2)
             return jsonify({
-                "error": f"Error during {parameterType} analysis: {str(e)}",
-                "traceback": traceback.format_exc(),
-                "status": "error"
-            }), 500
-    except Exception as e:
+                "parameters": {
+                    "symbolic": z_params["symbolic"],
+                    "numeric": {k: str(v) for k, v in z_params["numeric"].items()}
+                },
+                "parameter_type": "z",
+                "status": "success"
+            })
+
+        elif parameterType == "y":
+            logger.info("Starting Y-parameter")
+            y_params = run_y_parameter(frequency, p1n1, p1n2, p2n1, p2n2)
+            return jsonify({
+                "parameters": {
+                    "symbolic": y_params["symbolic"],
+                    "numeric": {k: str(v) for k, v in y_params["numeric"].items()}
+                },
+                "parameter_type": "y",
+                "status": "success"
+            })
+
+        elif parameterType == "s":
+
+            logger.info("Starting S-parameter")
+            logger.info(f"Start Frequency: {startfrequency}")
+            logger.info(f"End Frequency: {endfrequency}")
+
+            calculator = run_s_parameter()
+            S_params = calculator(startfrequency, endfrequency, p1n1, p1n2, p2n1, p2n2)
+
+            if S_params is None:
+                logger.error("❌ run_s_parameter returned None!")
+                return jsonify({
+                    'success': False,
+                    'message': 'S-parameter calculation failed',
+                    'error': 'No S-parameters returned'
+                }), 500
+
+            # Check if S_params is empty
+            if S_params.size == 0:
+                logger.error("❌ S-parameter array is empty!")
+                return jsonify({
+                    'success': False,
+                    'message': 'S-parameter calculation failed',
+                    'error': 'Empty S-parameters array'
+                }), 500
+
+            logger.info(f"✅ S_params received: shape={S_params.shape}, dtype={S_params.dtype}")
+            try:
+                
+                import skrf as rf
+                if startfrequency == endfrequency:
+                    freq_range = rf.Frequency(start=startfrequency, stop=startfrequency, npoints=1, unit='GHz')
+                else:
+                    freq_range = rf.Frequency(start=startfrequency, stop=endfrequency, npoints=len(S_params), unit='GHz')
+                
+                # Import the plotting function
+                from S_parameter import plot_s_parameters
+                plot_path = plot_s_parameters(freq_range, S_params, save_dir='static')
+                logger.info(f"Plot generated at: {plot_path}")
+            except Exception as plot_error:
+                logger.error(f"Error generating plot: {plot_error}")
+                logger.error(traceback.format_exc())
+            
+            def complex_to_dict(complex_array):
+                """
+                Convert numpy array of S-parameters to JSON-serializable format.
+                Input shape: (nfreqs, 2, 2) - number of frequencies x 2x2 matrix
+                """
+                try:
+                    result = []
+                    for freq_point in complex_array:  # Iterate over frequency points
+                        freq_data = []
+                        for row in freq_point:  # Iterate over rows (2 rows)
+                            row_data = []
+                            for val in row:  # Iterate over columns (2 columns)
+                                if isinstance(val, (complex, np.complex64, np.complex128)):
+                                    row_data.append({
+                                        'real': float(np.real(val)),
+                                        'imag': float(np.imag(val)),
+                                        'magnitude': float(np.abs(val)),
+                                        'phase_deg': float(np.angle(val) * 180 / np.pi)
+                                    })
+                                else:
+                                    row_data.append({
+                                        'real': float(val),
+                                        'imag': 0.0,
+                                        'magnitude': float(abs(val)),
+                                        'phase_deg': 0.0
+                                    })
+                            freq_data.append(row_data)  # Append complete row
+                        result.append(freq_data)  # Append complete matrix for this frequency
+                    return result
+                except Exception as e:
+                    logger.error(f"Error converting complex array to dictionary: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    return []
+
+            # Convert S-parameters to JSON-serializable format
+            s_params_serializable = complex_to_dict(S_params)
+            
+            # Generate frequency array
+            if startfrequency == endfrequency:
+                frequencies = [float(startfrequency)]
+            else:
+                frequencies = np.linspace(startfrequency, endfrequency, len(S_params)).tolist()
+
+            # Debug logging
+            logger.info(f"S-parameters shape: {S_params.shape}")
+            logger.info(f"Serialized data length: {len(s_params_serializable)}")
+            logger.info(f"Frequencies length: {len(frequencies)}")
+            if s_params_serializable:
+                logger.info(f"First S-parameter matrix structure: {s_params_serializable[0]}")
+            else:
+                logger.error("Serialized S-parameters is EMPTY!")
+
+            # Return with correct field names matching frontend expectations
+            return jsonify({
+                'success': True,
+                'message': 'S-parameters calculated successfully',
+                'sparameters': s_params_serializable,  # NO UNDERSCORE
+                'frequencies': frequencies,
+                'shape': list(S_params.shape),
+                'parametertype': 's'  # LOWERCASE 't'
+            })
+
+        else:
+            raise ValueError(f"Unsupported parameter type: {parameterType}")
+
+
+
+    except Exception as e:   # OUTER EXCEPT
         logger.error(f"Error during simulation: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({
@@ -623,7 +722,8 @@ def parameter():
             "traceback": traceback.format_exc(),
             "status": "error"
         }), 500
-   
+
+
 @app.route('/blog/form', methods=['POST', 'GET'])
 def blog_posts():
     if request.method == 'POST':

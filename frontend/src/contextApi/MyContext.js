@@ -24,11 +24,18 @@ export const ContextProvider = ({ children }) => {
   const [analysisType, setAnalysisType] = useState("dc"); // New state for analysis type
   const[parameterType,setparameterType]=useState("z")
   const [frequency, setFrequency] = useState();
+  const [startfrequency,setstartfrequency]=useState();
+  const [endfrequency,setendfrequency]=useState();
   const[parametervalue,setparametervalue]=useState();
   const [p1n1, setp1n1] = useState();
   const [p1n2, setp1n2] = useState();
   const [p2n1, setp2n1] = useState();
   const [p2n2, setp2n2] = useState();
+  const [impedance,setimpedance]=useState();
+  const [electrical_length,setelectrical_length]=useState();
+  const [length,setlength]=useState();
+
+
   useEffect(()=>{
     const handleUpdateNodes = ()=>{
       const newMap = new Map()
@@ -67,6 +74,9 @@ let temp = {};
       dependentnode2:null,
       Vcontrol:null,
       phase:null,
+      impedance:null,
+      electrical_length:null,
+      length:null,
     };
 
     switch (type) {
@@ -127,7 +137,6 @@ let temp = {};
           temp[key] = `T${components.filter(comp => comp.type === 'Pnp Transistor').length + 1}`;
           break;
         case "PM":
-
           component.type = 'P Mosfet';
           component.id = `T${components.filter(comp => comp.type === 'P Mosfet').length + 1}`;
           component.value = `${value}`;
@@ -149,18 +158,6 @@ let temp = {};
           component.id = `V${sourceCnt}`;
           component.value = `${value}`;
           temp[key] = `V${sourceCnt}`;
-          break;
-        case "Ammeter":
-          component.type = 'Ammeter';
-          component.id = `AM${components.filter(comp => comp.type === 'Ammeter').length + 1}`;
-          component.value = '0'; // Ammeters don't have a value, they measure current
-          temp[key] = `AM${components.filter(comp => comp.type === 'Ammeter').length + 1}`;
-          break;
-        case "Voltmeter":
-          component.type = 'Voltmeter';
-          component.id = `VM${components.filter(comp => comp.type === 'Voltmeter').length + 1}`;
-          component.value = '0'; // Ammeters don't have a value, they measure current
-          temp[key] = `VM${components.filter(comp => comp.type === 'Voltmeter').length + 1}`;
           break;
         case "VCVS":
             component.type = 'VCVS';
@@ -188,7 +185,6 @@ let temp = {};
           }
           temp[key] = `G${components.filter(comp => comp.type === 'CCCS').length + 1}`;
           break;
-
           case "CCVS":
             component.type = 'CCVS';
             component.id = `H${components.filter(comp => comp.type === 'CCVS').length + 1}`;
@@ -201,32 +197,59 @@ let temp = {};
             }
             temp[key] = component.id;
             break;
-          
         case "CCCS":
           component.type = 'CCCS';
           component.id = `F${components.filter(comp => comp.type === 'CCCS').length + 1}`;
           if (typeof value === 'object') {
             component.value = value.value;
             component.Vcontrol=value.Vcontrol;
-           
           } else {
             component.value = `${value}`;
           }
           temp[key] = `F${components.filter(comp => comp.type === 'CCCS').length + 1}`;
           break;
-
         case "CS":
           component.type = 'Current Source';
           component.id = `I${components.filter(comp => comp.type === 'Current Source').length + 1}`;
           component.value = `${value}`;
           temp[key] = `I${components.filter(comp => comp.type === 'Current Source').length + 1}`;
           break;
-          case "TL":
+        case "TL":
             component.type = 'Transmission line';
-            component.id = `T${components.filter(comp => comp.type === 'Transmission line').length + 1}`;
-            component.value = `${value}`;
-            temp[key] = `T${components.filter(comp => comp.type === 'Transmission line').length + 1}`;
-            break;  
+            component.id = `TL${components.filter(comp => comp.type === 'Transmission line').length + 1}`;
+            if (typeof value === 'object') {
+              component.impedance = value.impedance;
+              component.electrical_length = value.electrical_length
+              component.length = value.length
+            } else {
+              component.impedance = `${value}`;
+            }
+            temp[key] = `TL${components.filter(comp => comp.type === 'Transmission line').length + 1}`;
+            break; 
+          case "OPSTUB":
+            component.type = 'Open Stub';
+            component.id = `OS${components.filter(comp => comp.type === 'Open Stub').length + 1}`;
+            if (typeof value === 'object') {
+              component.impedance = value.impedance;
+              component.electrical_length = value.electrical_length
+              component.length = value.length
+            } else {
+              component.impedance = `${value}`;
+            }
+            temp[key] = `OS${components.filter(comp => comp.type === 'Open Stub').length + 1}`;
+            break;   
+          case "SSTUB":
+            component.type = 'Short Stub';
+            component.id = `SS${components.filter(comp => comp.type === 'Short Stub').length + 1}`;
+            if (typeof value === 'object') {
+              component.impedance = value.impedance;
+              component.electrical_length = value.electrical_length
+              component.length = value.length
+            } else {
+              component.impedance = `${value}`;
+            }
+            temp[key] = `SS${components.filter(comp => comp.type === 'Short Stub').length + 1}`;
+            break;   
       default:
         component.type = 'Generic';
         component.id = key;
@@ -321,8 +344,9 @@ const sendSimulationData = async () => {
       numberNodes: updatedNodes.size,
       analysisType: analysisType,
       frequency: parseFloat(frequency) || 50,
+     
     };
-
+    
     console.log('Sending simulation data:', body);
     console.log('Starting fetch request...');
     
@@ -371,10 +395,10 @@ const sendSimulationData = async () => {
       }
 
       // ✅ Stop simulation if no ground node found
-    if (!groundNode) {
-      toast.error("Please set a ground node before running the simulation.");
-      return; // ❌ Exit function early
-    }
+    // if (!groundNode) {
+    //   toast.error("Please set a ground node before running the simulation.");
+    //   return; // ❌ Exit function early
+    // }
   
       // Convert the components array into a JSON string
       const netstring = JSON.stringify({
@@ -388,11 +412,18 @@ const sendSimulationData = async () => {
         parameterType: parameterType,
         frequency: parseFloat(frequency) || 0,
         p1n1: p1n1 ? parseInt(p1n1) : null,
-        p1n2: p1n2 ? parseInt(p1n2) : null,
+        p1n2: parameterType === "s" ? (p1n2 ? parseInt(p1n2) : 0) : (p1n2 ? parseInt(p1n2) : null),
         p2n1: p2n1 ? parseInt(p2n1) : null,
-        p2n2: p2n2 ? parseInt(p2n2) : null
+        p2n2: parameterType === "s" ? (p2n2 ? parseInt(p2n2) : 0) : (p2n2 ? parseInt(p2n2) : null),
+       
+        impedance:impedance,
+        electrical_length:electrical_length,
+        length:length,
+        startingfrequency: parseFloat(startfrequency) || 0.1,
+        endfrequency:parseFloat(endfrequency)|| 1,
+
       };
-      if(!p1n1 || !p1n2 || !p2n1 || !p2n2){
+      if(!p1n1 || !p2n1 || (parameterType !== "s" && (!p1n2 || !p2n2))){
         toast.error("please select port nodes")
         return;
       }
@@ -525,6 +556,40 @@ const sendSimulationData = async () => {
       });
   }
 
+  const viewSParameterPlots = () => {
+    if (parameterType !== 's') {
+      toast.error('Switch to S-parameter to view S plots.');
+      return;
+    }
+    const apiUrl = `https://circuit-simulator.onrender.com/get-images/s`;
+    fetch(apiUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (!data || data.length === 0) {
+          toast.error('No S-parameter plots available. Evaluate parameters first.');
+          return;
+        }
+        const popup = window.open('', '_blank', 'width=900,height=700');
+        popup.document.write('<html><head><title>S-Parameter Plots</title></head><body>');
+        popup.document.write('<h2>S-Parameter Plots</h2>');
+        data.forEach(item => {
+          popup.document.write(`<h4>${item.description}</h4>`);
+          popup.document.write(`<img src="https://circuit-simulator.onrender.com/${item.url}" alt="${item.description}" style="width:100%; max-width:860px;">`);
+        });
+        popup.document.write('</body></html>');
+        popup.document.close();
+      })
+      .catch(error => {
+        console.error('Error fetching S images:', error);
+        toast.error('Error fetching S-parameter plots.');
+      });
+  }
+
   const [circuit, setCircuit] = useState([
     {
       id: 0,
@@ -558,6 +623,7 @@ const sendSimulationData = async () => {
         sendSimulationData,
         sendparameterData, // Updated to use the new function name
         viewSimulation,
+        viewSParameterPlots,
         analysisType,
         setAnalysisType, // Allowing components to update the analysis type
         parameterType,
@@ -566,6 +632,10 @@ const sendSimulationData = async () => {
         setparametervalue,
         frequency,
         setFrequency,
+        startfrequency,
+        setstartfrequency,
+        endfrequency,
+        setendfrequency,
         p1n1,
         p1n2,
         p2n1,
@@ -577,8 +647,11 @@ const sendSimulationData = async () => {
         simData,
         valMap,
         setValMap,
+        impedance,
+        electrical_length,
+        length,
         temp,
-        AmmeterDisplay
+       
       }}
     >
       {children}

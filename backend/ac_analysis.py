@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import figure, show, xlabel, ylabel, legend, subplots, savefig
 from lcapy import *
@@ -7,6 +9,7 @@ import numpy as np
 import logging
 import re
 import math
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -14,6 +17,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def _static_dir(path_segment: str = ""):
+    base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+    os.makedirs(base_dir, exist_ok=True)
+    return os.path.join(base_dir, path_segment) if path_segment else base_dir
 
 def preprocess_netlist(netlist_string):
     lines = netlist_string.strip().splitlines()
@@ -131,7 +139,10 @@ def plot_time_domain(phasors, labels, title, filename, freq):
         ax.axvline(x=i * period_ms, color='red', linestyle='--', alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig(filename, bbox_inches='tight', dpi=300)
+    # Resolve filename relative to backend/static if needed
+    out_path = _static_dir(os.path.basename(filename)) if filename.startswith('static') else filename
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    plt.savefig(out_path, bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -211,7 +222,7 @@ def run_ac_analysis(freq, netlist_filename='netlist.txt'):
         ax.set_rgrids([0.2, 0.5, 0.8, 1.0], angle=45)
         ax.legend(bbox_to_anchor=(1.1, 1.05))
         plt.title("Voltage Phasor Diagram", fontsize=14, fontweight='bold')
-        plt.savefig('static/ac_analysis_voltage_phasor.png', bbox_inches='tight')
+        plt.savefig(_static_dir('ac_analysis_voltage_phasor.png'), bbox_inches='tight')
         plt.close()
 
         fig = plt.figure(figsize=(8, 6))
@@ -229,18 +240,18 @@ def run_ac_analysis(freq, netlist_filename='netlist.txt'):
         ay.set_rgrids([0.2, 0.5, 0.8, 1.0], angle=45)
         ay.legend(bbox_to_anchor=(1.1, 1.05))
         plt.title("Current Phasor Diagram", fontsize=14, fontweight='bold')
-        plt.savefig('static/ac_analysis_current_phasor.png', bbox_inches='tight')
+        plt.savefig(_static_dir('ac_analysis_current_phasor.png'), bbox_inches='tight')
         plt.close()
 
         # Plot time domain representations
         if v_phasors:
             plot_time_domain(v_phasors, v_labels, "Voltage", 
-                           'static/ac_analysis_voltage_time_domain.png', freq)
+                           _static_dir('ac_analysis_voltage_time_domain.png'), freq)
             logger.info("Voltage time domain plot saved")
 
         if i_phasors:
             plot_time_domain(i_phasors, i_labels, "Current", 
-                           'static/ac_analysis_current_time_domain.png', freq)
+                           _static_dir('ac_analysis_current_time_domain.png'), freq)
             logger.info("Current time domain plot saved")
 
         # Combined time domain plot
@@ -283,7 +294,7 @@ def run_ac_analysis(freq, netlist_filename='netlist.txt'):
                 ax2.axvline(x=i*period_ms, color='red', linestyle='--', alpha=0.5)
             
             plt.tight_layout()
-            plt.savefig('static/ac_analysis_combined_time_domain.png', bbox_inches='tight', dpi=300)
+            plt.savefig(_static_dir('ac_analysis_combined_time_domain.png'), bbox_inches='tight', dpi=300)
             plt.close()
             logger.info("Combined time domain plot saved")
 

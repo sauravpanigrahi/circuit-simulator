@@ -9,7 +9,7 @@ import { toast } from 'react-toastify';
 
 const CircuitCanvas = () => {
   const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const {
     connectedDots,
     setConnectedDots,
@@ -34,6 +34,10 @@ const CircuitCanvas = () => {
     setparametervalue,
     frequency,
     setFrequency,
+    startfrequency,
+    setstartfrequency,
+    endfrequency,
+    setendfrequency,
     p1n1,
     p1n2,
     p2n1,
@@ -45,7 +49,11 @@ const CircuitCanvas = () => {
     simData,
     valMap,
     setValMap,
-    temp
+    impedance,
+    electrical_length,
+    length,
+    temp,
+    viewSParameterPlots
   } = useMyContext();
 
   const [NodeVoltagePosition, setNodeVoltagePosition] = useState({ x: 0, y: 0 });
@@ -57,7 +65,6 @@ const CircuitCanvas = () => {
   const [parameterResults, setParameterResults] = useState(null);
   const [showParameterResults, setShowParameterResults] = useState(false);
   const [complexform, setcomplexform] = useState(false);
-  // const [groundNodeId, setGroundNodeId] = useState(null); // store the selected ground node
 
   const svgRef = React.createRef();
   const numRows = 30;
@@ -67,14 +74,14 @@ const CircuitCanvas = () => {
   const [netlist, setNetlist] = useState("");
   const [nextNodeNumber, setNextNodeNumber] = useState(0);
 
-  // Dark mode toggle function
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
+  
   const use = () => {
     navigate('/use');
   };
-  // Apply theme to body
+
   useEffect(() => {
     if (isDarkMode) {
       document.body.classList.add('dark-theme');
@@ -86,12 +93,16 @@ const CircuitCanvas = () => {
   }, [isDarkMode]);
 
   useEffect(() => {
-    if (parametervalue && parametervalue.parameters && parametervalue.parameters.numeric) {
+    if (
+      parametervalue && (
+        (parametervalue.parameters && parametervalue.parameters.numeric) ||
+        parametervalue.parametertype === "s"
+      )
+    ) {
       setShowParameterResults(true);
     }
   }, [parametervalue]);
 
-  // Enhanced complex number formatting functions
   const formatComplexNumber = (complexNum, precision = 3) => {
     if (complexNum == null) return '0';
 
@@ -108,19 +119,16 @@ const CircuitCanvas = () => {
       
       const threshold = Math.pow(10, -(precision + 2));
       
-      // Pure real number
       if (Math.abs(imag) < threshold) {
         return real.toFixed(precision);
       }
       
-      // Pure imaginary number
       if (Math.abs(real) < threshold) {
         if (Math.abs(imag - 1) < threshold) return 'j';
         if (Math.abs(imag + 1) < threshold) return '-j';
         return `${imag.toFixed(precision)}j`;
       }
       
-      // Complex number with both real and imaginary parts
       const realStr = real.toFixed(precision);
       const imagStr = Math.abs(imag).toFixed(precision);
       
@@ -148,7 +156,6 @@ const CircuitCanvas = () => {
     return complexNum.toString();
   };
 
-  // Specialized impedance formatting for electrical engineering
   const formatImpedance = (complexNum, options = {}) => {
     const {
       precision = 1,
@@ -160,7 +167,6 @@ const CircuitCanvas = () => {
   
     if (complexNum == null) return '0';
   
-    // Handle string input like "1e-12-318309.8861837907j"
     if (typeof complexNum === 'string') {
       const match = complexNum.match(/([+-]?[\d.]+(?:[eE][+-]?\d+)?)\s*([+-])\s*([\d.]+(?:[eE][+-]?\d+)?)j?/);
       if (match) {
@@ -168,7 +174,6 @@ const CircuitCanvas = () => {
         const imag = parseFloat(match[2] + match[3]);
         complexNum = { real, imag };
       } else {
-        // Try parsing as a simple number
         const num = parseFloat(complexNum);
         if (!isNaN(num)) {
           complexNum = { real: num, imag: 0 };
@@ -176,7 +181,6 @@ const CircuitCanvas = () => {
       }
     }
   
-    // Rest of your formatImpedance function...
     if (typeof complexNum === 'object') {
       const real = parseFloat(complexNum.real || complexNum.re || 0);
       const imag = parseFloat(complexNum.imag || complexNum.im || complexNum.i || 0);
@@ -185,7 +189,6 @@ const CircuitCanvas = () => {
       
       const threshold = Math.pow(10, -(precision + 2));
       
-      // Convert to appropriate units
       let displayReal = real;
       let displayImag = imag;
       let displayUnit = unit;
@@ -204,7 +207,6 @@ const CircuitCanvas = () => {
         imagStr = parseFloat(imagStr).toString();
       }
       
-      // Pure imaginary (like your impedance examples)
       if (Math.abs(displayReal) < threshold) {
         if (Math.abs(displayImag - 1) < threshold) {
           return unit ? `${imaginaryUnit} ${displayUnit}` : imaginaryUnit;
@@ -216,12 +218,10 @@ const CircuitCanvas = () => {
         return unit ? `${result} ${displayUnit}` : result;
       }
       
-      // Pure real
       if (Math.abs(displayImag) < threshold) {
         return unit ? `${realStr} ${displayUnit}` : realStr;
       }
       
-      // Complex number with both parts
       const sign = displayImag >= 0 ? '+' : '-';
       const absImagStr = Math.abs(parseFloat(imagStr)).toString();
       
@@ -237,10 +237,10 @@ const CircuitCanvas = () => {
   
     return complexNum.toString();
   };
+
   const parseComplexFromBackend = (complexValue) => {
     if (!complexValue) return { real: 0, imag: 0 };
     
-    // Handle if it's already an object with real/imag properties
     if (typeof complexValue === 'object' && complexValue !== null) {
       if ('real' in complexValue && 'imag' in complexValue) {
         return {
@@ -256,24 +256,19 @@ const CircuitCanvas = () => {
       }
     }
     
-    // Handle string format like "1e-03+6.28e-03j" or "(1e-03+6.28e-03j)"
     if (typeof complexValue === 'string') {
-      // Remove parentheses if present
       let cleanStr = complexValue.replace(/[()]/g, '').trim();
       
-      // Handle pure real numbers
       if (!cleanStr.includes('j') && !cleanStr.includes('i')) {
         const realVal = parseFloat(cleanStr);
         return { real: isNaN(realVal) ? 0 : realVal, imag: 0 };
       }
       
-      // Handle pure imaginary numbers like "6.28e-03j"
       const pureImagMatch = cleanStr.match(/^([+-]?[\d.]+(?:[eE][+-]?\d+)?)[ji]$/);
       if (pureImagMatch) {
         return { real: 0, imag: parseFloat(pureImagMatch[1]) || 0 };
       }
       
-      // Handle complex numbers like "1e-03+6.28e-03j" or "1e-03-6.28e-03j"
       const complexMatch = cleanStr.match(/([+-]?[\d.]+(?:[eE][+-]?\d+)?)\s*([+-])\s*([\d.]+(?:[eE][+-]?\d+)?)[ji]/);
       if (complexMatch) {
         const real = parseFloat(complexMatch[1]) || 0;
@@ -282,7 +277,6 @@ const CircuitCanvas = () => {
         return { real, imag };
       }
       
-      // Handle format like "1e-03 + j6.28e-03" (with spaces)
       const spacedMatch = cleanStr.match(/([+-]?[\d.]+(?:[eE][+-]?\d+)?)\s*([+-])\s*[ji]\s*([\d.]+(?:[eE][+-]?\d+)?)/);
       if (spacedMatch) {
         const real = parseFloat(spacedMatch[1]) || 0;
@@ -292,7 +286,6 @@ const CircuitCanvas = () => {
       }
     }
     
-    // Handle numeric values
     if (typeof complexValue === 'number') {
       return { real: complexValue, imag: 0 };
     }
@@ -312,7 +305,6 @@ const CircuitCanvas = () => {
   
     if (complexNum == null) return '0';
   
-    // Parse the complex number
     const parsed = parseComplexFromBackend(complexNum);
     const { real, imag } = parsed;
     
@@ -320,7 +312,6 @@ const CircuitCanvas = () => {
     
     const threshold = Math.pow(10, -(precision + 2));
     
-    // Engineering notation helper
     const toEngNotation = (val) => {
       if (Math.abs(val) < 1e-15) return '0';
       
@@ -349,13 +340,11 @@ const CircuitCanvas = () => {
       return `${sign}${abs_val.toExponential(precision)}`;
     };
     
-    // Pure real number
     if (Math.abs(imag) < threshold) {
       const result = useEngNotation ? toEngNotation(real) : real.toFixed(precision);
       return unit ? `${result} ${unit}` : result;
     }
     
-    // Pure imaginary number
     if (Math.abs(real) < threshold) {
       if (Math.abs(Math.abs(imag) - 1) < threshold) {
         const result = imag > 0 ? imaginaryUnit : `-${imaginaryUnit}`;
@@ -366,7 +355,6 @@ const CircuitCanvas = () => {
       return unit ? `${result} ${unit}` : result;
     }
     
-    // Complex number with both parts
     const realStr = useEngNotation ? toEngNotation(real) : real.toFixed(precision);
     const imagAbs = Math.abs(imag);
     const imagStr = useEngNotation ? toEngNotation(imagAbs) : imagAbs.toFixed(precision);
@@ -381,7 +369,6 @@ const CircuitCanvas = () => {
     
     return unit ? `${result} ${unit}` : result;
   };
-  
   
   const handleDotClick = (dotId) => {
     const assignNodeNumber = (id) => {
@@ -559,8 +546,6 @@ const CircuitCanvas = () => {
     }
   };
 
-
-
   const setGroundNode = (nodeId) => {
     if (!nodeId) {
       toast.error("Please select a valid node to set as ground.");
@@ -570,7 +555,6 @@ const CircuitCanvas = () => {
     setUpdatedNodes((prevNodes) => {
       const newNodeMap = new Map(prevNodes);
   
-      // ✅ Check if ground already exists
       if ([...newNodeMap.values()].includes(0)) {
         toast.error("Ground node is already set.");
         return prevNodes;
@@ -578,7 +562,6 @@ const CircuitCanvas = () => {
   
       newNodeMap.set(nodeId, 0);
   
-      // ✅ Show toast with the actual node number (0 for ground)
       toast.success(`Ground set at Node ${newNodeMap.get(nodeId)}`);
   
       console.log(`Node ${nodeId} set as ground (Node Number: ${newNodeMap.get(nodeId)})`);
@@ -589,9 +572,6 @@ const CircuitCanvas = () => {
       setNextNodeNumber(1);
     }
   };
-  
-  
-  
 
   const handleLineDoubleClick = (lineId, value) => {
     if (selectedComponent === "VCVS" || selectedComponent === "VCCS") {
@@ -649,6 +629,22 @@ const CircuitCanvas = () => {
         });
       }
       return;
+    } else if (selectedComponent === "TL" || selectedComponent === "OPSTUB" || selectedComponent === "SSTUB") {
+      const impedance = typeof value === 'object' ? value.impedance : value;
+      const electrical_length = typeof value === 'object' ? value.electrical_length : '';
+      const imp = prompt(`Enter Impedance for ${lineId}:`, impedance || '1');
+      const gamm = prompt("Enter electrical_length:", electrical_length);
+      if (imp !== null && gamm !== null) {
+        setValMap((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(lineId, {
+            impedance: imp,
+            electrical_length: gamm,
+          });
+          return newMap;
+        });
+      }
+      return;
     } else {
       const currentValue = typeof value === 'object' ? value.value : value;
       const newValue = prompt(`Update the value for component ${lineId}:`, currentValue);
@@ -666,7 +662,8 @@ const CircuitCanvas = () => {
     try {
       const response = await fetch('https://circuit-simulator.onrender.com/generate-netlist', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' ,
+        headers: { 
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify({})
@@ -685,66 +682,6 @@ const CircuitCanvas = () => {
       alert('Failed to generate netlist. Please check the console for details.');
     }
   };
-  
-
-  const getCurrentValue = (lineId, simData, temp) => {
-    if (!simData || !simData.current || !temp[lineId]) {
-      return "No data";
-    }
-  
-    const currentKey = `I_${temp[lineId]}`;
-    const currentValue = simData.current[currentKey];
-  
-    if (currentValue === undefined || currentValue === null) {
-      return "No data";
-    }
-  
-    const numericValue = parseFloat(currentValue);
-    const absoluteValue = Math.abs(numericValue);
-  
-    if (absoluteValue >= 1) {
-      return `${absoluteValue.toFixed(3)} A`;
-    } else if (absoluteValue >= 0.001) {
-      return `${(absoluteValue * 1000).toFixed(3)} mA`;
-    } else if (absoluteValue >= 0.000001) {
-      return `${(absoluteValue * 1000000).toFixed(3)} µA`;
-    } else {
-      return `${absoluteValue.toExponential(3)} A`;
-    }
-  };
-  
-  const getVoltageValue = (lineId, simData, temp, updatedNodes) => {
-  if (!simData || !simData.voltages || !temp[lineId]) {
-    return "No data";
-  }
-
-  const lineParts = lineId.split('_');
-  const node1Id = lineParts[1];
-  const node2Id = lineParts[2];
-
-  const node1Num = updatedNodes.get(node1Id);
-  const node2Num = updatedNodes.get(node2Id);
-
-  if (node1Num === undefined || node2Num === undefined) {
-    return "No data";
-  }
-
-  const v1 = parseFloat(simData.voltages[`V_node_${node1Num}`] || 0);
-  const v2 = parseFloat(simData.voltages[`V_node_${node2Num}`] || 0);
-
-  const voltageDifference = v1 - v2;
-  const absoluteVoltage = Math.abs(voltageDifference);
-
-  if (absoluteVoltage >= 1) {
-    return `${absoluteVoltage.toFixed(3)} V`;
-  } else if (absoluteVoltage >= 0.001) {
-    return `${(absoluteVoltage * 1000).toFixed(3)} mV`;
-  } else if (absoluteVoltage >= 0.000001) {
-    return `${(absoluteVoltage * 1000000).toFixed(3)} µV`;
-  } else {
-    return `${absoluteVoltage.toExponential(3)} V`;
-  }
-};
 
   const renderZParameterMatrix = () => {
     if (!parametervalue || !parametervalue.parameters || !parametervalue.parameters.numeric) return null;
@@ -784,9 +721,8 @@ const CircuitCanvas = () => {
             backgroundColor: 'white',
             color: 'black'
           }}>
-            {/* <p>{symZ11}</p> */}
             <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
-            {complexform ? 
+              {complexform ? 
                 formatImpedance(Z11, { precision: 1, unit: 'Ω', showAsKilo: true }) : 
                 formatImpedance(Z11, { precision: 2, unit: 'Ω' })
               }
@@ -831,17 +767,13 @@ const CircuitCanvas = () => {
             ✓ Network is reciprocal (Z12 = Z21)
           </div>
         )}
-  {complexform}
-        {/* <button className="complex-btn" onClick={() => setcomplexform(prev => !prev)}>
-          {complexform ? 'Normal Form' : 'Complex form'}
-        </button> */}
+
         <button className="close-btn" onClick={() => setShowParameterResults(false)}>
           Close
         </button>
       </div>
     );
   };
-  
 
   const renderYParameterMatrix = (parametervalue, frequency, parameterType, complexform, setShowParameterResults) => {
     if (!parametervalue || !parametervalue.parameters || !parametervalue.parameters.numeric || parameterType !== 'y') return null;
@@ -849,7 +781,6 @@ const CircuitCanvas = () => {
     const { Y11, Y12, Y21, Y22 } = parametervalue.parameters.numeric;
     const { Y11: symY11, Y12: symY12, Y21: symY21, Y22: symY22 } = parametervalue.parameters.symbolic || {};
   
-    // Check reciprocity
     const y12_parsed = parseComplexFromBackend(Y12);
     const y21_parsed = parseComplexFromBackend(Y21);
     const reciprocity_error = Math.sqrt(
@@ -911,7 +842,6 @@ const CircuitCanvas = () => {
           <div>Y22: Input admittance at port 2</div>
         </div>
   
-        {/* Network properties */}
         <div style={{ marginTop: '10px' }}>
           {isReciprocal ? (
             <div style={{
@@ -936,19 +866,6 @@ const CircuitCanvas = () => {
           )}
         </div>
   
-        {/* Display symbolic forms if available */}
-        {/* {symY11 && (
-          // <div style={{ marginTop: '10px', fontSize: '11px', color: '#495057' }}>
-          //   <strong>Symbolic:</strong>
-          //   <div style={{ fontFamily: 'monospace', marginTop: '5px' }}>
-          //     Y11 = {symY11}<br/>
-          //     Y12 = {symY12}<br/>
-          //     Y21 = {symY21}<br/>
-          //     Y22 = {symY22}
-          //   </div>
-          // </div>
-        )} */}
-  
         <button 
           style={{
             marginTop: '10px',
@@ -966,22 +883,110 @@ const CircuitCanvas = () => {
       </div>
     );
   };
-  
-  // Example usage in your component:
-  /*
-  In your CircuitCanvas component, replace the renderYParameterMatrix function with this enhanced version:
-  
-  const renderYParameterMatrix = () => {
-    return renderYParameterMatrix(parametervalue, frequency, parameterType, complexform, setShowParameterResults);
+
+  const SParameterMatrix = ({ parametervalue, setShowParameterResults }) => {
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    
+    if (
+      !parametervalue ||
+      parametervalue.parametertype !== "s" ||
+      !Array.isArray(parametervalue.frequencies) ||
+      !Array.isArray(parametervalue.sparameters) ||
+      parametervalue.frequencies.length === 0 ||
+      parametervalue.sparameters.length === 0
+    ) return null;
+
+    const formatComplex = (c) =>
+      `${c.real.toFixed(2)} ${c.imag >= 0 ? "+" : ""} j${c.imag.toFixed(2)}`;
+
+    const handleChange = (e) => {
+      setSelectedIndex(Number(e.target.value));
+    };
+
+    const freq = parametervalue.frequencies[selectedIndex];
+    const s11 = parametervalue.sparameters[selectedIndex][0][0];
+    const s12 = parametervalue.sparameters[selectedIndex][0][1];
+    const s21 = parametervalue.sparameters[selectedIndex][1][0];
+    const s22 = parametervalue.sparameters[selectedIndex][1][1];
+
+    const isReciprocal =
+      Math.abs(s12.real - s21.real) < 1e-6 &&
+      Math.abs(s12.imag - s21.imag) < 1e-6;
+
+    return (
+      <div style={{
+        padding: "15px",
+        backgroundColor: "#f8f9fa",
+        border: "2px solid #28a745",
+        borderRadius: "10px",
+        marginBottom: "15px",
+      }}>
+        <h4 style={{ color: "#28a745", marginBottom: "10px" }}>S-Parameter Matrix</h4>
+
+        <div style={{ marginBottom: "10px" }}>
+          <label style={{ marginRight: "8px" }}>Select Frequency:</label>
+          <select value={selectedIndex} onChange={handleChange}>
+            {parametervalue.frequencies.map((f, i) => (
+              <option key={i} value={i}>
+                {f.toFixed(2)} Hz
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <h5 style={{ margin: "10px 0", color: "#007bff" }}>
+          Frequency: {freq.toFixed(2)} Hz
+        </h5>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "auto auto auto",
+          gap: "10px",
+          alignItems: "center",
+          fontSize: "14px",
+        }}>
+          <div style={{ gridColumn: "1 / 2", textAlign: "center", fontWeight: "bold" }}>
+            [S] =
+          </div>
+          <div style={{
+            gridColumn: "2 / 4",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "5px",
+            border: "1px solid #ccc",
+            padding: "10px",
+            backgroundColor: "white",
+            color: "black",
+          }}>
+            <div style={{ textAlign: "center", fontFamily: "monospace", fontSize: "12px" }}>{formatComplex(s11)}</div>
+            <div style={{ textAlign: "center", fontFamily: "monospace", fontSize: "12px" }}>{formatComplex(s12)}</div>
+            <div style={{ textAlign: "center", fontFamily: "monospace", fontSize: "12px" }}>{formatComplex(s21)}</div>
+            <div style={{ textAlign: "center", fontFamily: "monospace", fontSize: "12px" }}>{formatComplex(s22)}</div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "10px", fontSize: "12px" }}>
+          {isReciprocal ? (
+            <span style={{ color: "#28a745" }}>✓ Reciprocal (S12 = S21)</span>
+          ) : (
+            <span style={{ color: "#dc3545" }}>⚠ Not Reciprocal</span>
+          )}
+        </div>
+
+        <button style={{
+          marginTop: "10px",
+          padding: "8px 16px",
+          backgroundColor: "#dc3545",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }} onClick={() => setShowParameterResults(false)}>
+          Close
+        </button>
+      </div>
+    );
   };
-  */
-  
-  // Test the parsing with your actual data
-  // console.log('Testing Y-parameter parsing:');
-  // console.log('Y11:', formatAdmittance({ real: 1e-6, imag: 6.28e-3 }));
-  // console.log('Y12:', formatAdmittance({ real: -1e-6, imag: 0 }));
-  // console.log('Y21:', formatAdmittance({ real: -1e-6, imag: 0 }));
-  // console.log('Y22:', formatAdmittance({ real: 1e-6, imag: 6.28e-3 }));
 
   return (
     <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`}>
@@ -998,9 +1003,9 @@ const CircuitCanvas = () => {
           <button className="back-btn" onClick={() => navigate("/")}>
             ⬅ Back to Home
           </button>
-          <button className="btn back-btn btn-primary px-4 py-2  rounded fw-semibold" onClick={use}>
-                    How to use
-                  </button>
+          <button className="btn back-btn btn-primary px-4 py-2 rounded fw-semibold" onClick={use}>
+            How to use
+          </button>
         </div>
       </div>
       <div className="circuit-layout">
@@ -1083,66 +1088,123 @@ const CircuitCanvas = () => {
             >
               <option value="z">Z-parameter</option>
               <option value="y">Y-parameter</option>
-              <option value="ab" disabled>ABCD-parameter</option>
+              <option value="s">S-parameter</option>
             </select>
+            {parameterType === "s" ? (
+              <>
+                <input
+                  type="text"
+                  placeholder="Starting Frequency"
+                  value={startfrequency}
+                  onChange={(e) => setstartfrequency(e.target.value)}
+                  className="input-full"
+                />
+                <input
+                  type="text"
+                  placeholder="Ending Frequency"
+                  value={endfrequency}
+                  onChange={(e) => setendfrequency(e.target.value)}
+                  className="input-full"
+                />
 
-            <input
-              type="text"
-              placeholder="Frequency"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              className="input-full"
-            />
+                <div className="port-inputs">
+                  <input
+                    type="text"
+                    placeholder="p1n1"
+                    value={p1n1}
+                    onChange={(e) => setp1n1(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="p1n2"
+                    value={p1n2}
+                    onChange={(e) => setp1n2(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="p2n1"
+                    value={p2n1}
+                    onChange={(e) => setp2n1(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="p2n2"
+                    value={p2n2}
+                    onChange={(e) => setp2n2(e.target.value)}
+                  />
+                </div>
+                <button onClick={sendparameterData} className="evaluate-button">
+                  Evaluate Parameters
+                </button>
+                <button onClick={viewSParameterPlots} className="secondary" style={{marginTop: '8px'}}>
+                  View S-Parameter Plots
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  placeholder="Frequency"
+                  value={frequency}
+                  onChange={(e) => setFrequency(e.target.value)}
+                  className="input-full"
+                />
 
-            <div className="port-inputs">
-              <input
-                type="text"
-                placeholder="p1n1"
-                value={p1n1}
-                onChange={(e) => setp1n1(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder="p1n2"
-                value={p1n2}
-                onChange={(e) => setp1n2(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder="p2n1"
-                value={p2n1}
-                onChange={(e) => setp2n1(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder="p2n2"
-                value={p2n2}
-                onChange={(e) => setp2n2(e.target.value)}
-              />
-            </div>
-            <button onClick={sendparameterData} className="evaluate-button">
-              Evaluate Parameters
-            </button>
+                <div className="port-inputs">
+                  <input
+                    type="text"
+                    placeholder="p1n1"
+                    value={p1n1}
+                    onChange={(e) => setp1n1(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="p1n2"
+                    value={p1n2}
+                    onChange={(e) => setp1n2(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="p2n1"
+                    value={p2n1}
+                    onChange={(e) => setp2n1(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="p2n2"
+                    value={p2n2}
+                    onChange={(e) => setp2n2(e.target.value)}
+                  />
+                </div>
+                <button onClick={sendparameterData} className="evaluate-button">
+                  Evaluate Parameters
+                </button>
+              </>
+            )}
           </div>
         </aside>
         <main className="circuit-canvas-area">
-          {showParameterResults && parametervalue && parametervalue.parameters && parametervalue.parameters.numeric && (
+          {showParameterResults && parametervalue && (
             <div style={{
               position: 'absolute',
               top: '10px',
               right: '10px',
               zIndex: 1000,
-              minWidth: '300px'
+              minWidth: '300px',
+              maxHeight: '80vh',
+              overflowY: 'auto'
             }}>
-             {parameterType === 'z' ? 
-  renderZParameterMatrix() : 
-  parameterType === 'y' ? 
-    renderYParameterMatrix(parametervalue, frequency, parameterType, complexform, setShowParameterResults) : 
-    null
-}
-
+              {parameterType === 'z' && parametervalue.parameters && parametervalue.parameters.numeric ? 
+                renderZParameterMatrix() : 
+              parameterType === 'y' && parametervalue.parameters && parametervalue.parameters.numeric ? 
+                renderYParameterMatrix(parametervalue, frequency, parameterType, complexform, setShowParameterResults) :
+              parametervalue.parametertype === 's' ?
+                <SParameterMatrix parametervalue={parametervalue} setShowParameterResults={setShowParameterResults} /> :
+                null
+              }
             </div>
           )}
+
           <div className="circuit-svg-board">
             <svg ref={svgRef} width={numCols * (2 * dotRadius + gap)} height={numRows * (2 * dotRadius + gap)}>
               {Array.from({ length: numRows }).map((_, row) =>
@@ -1207,65 +1269,43 @@ const CircuitCanvas = () => {
             const voltage = simData?.voltages?.[`V_${label}`] ?? 'N/A';
             const current = simData?.current?.[`I_${label}`] ?? 'N/A';
 
-            if (firstTwoChars === 'AM') {
-              return (
-                <div className={`component-info-card ${isDarkMode ? 'dark' : 'light'}`}>
-                  <div className="component-header">
-                    📊 {label}
-                  </div>
-                  <div className="component-value">
-                    Current: {getCurrentValue(LineCurrentId, simData, temp)}
-                  </div>
-                  <div className="component-description">
-                    Measuring current flow (absolute value)
-                  </div>
-                </div>
-              );
-            }
-
-            if (firstTwoChars === 'VM') {
-              return (
-                <div className={`component-info-card ${isDarkMode ? 'dark' : 'light'}`}>
-                  <div className="component-header">
-                    ⚡ {label}
-                  </div>
-                  <div className="component-value">
-                    Voltage: {getVoltageValue(LineCurrentId, simData, temp, updatedNodes)}
-                  </div>
-                  <div className="component-description">
-                    Measuring voltage difference (absolute value)
-                  </div>
-                </div>
-              );
-            }
-
             return (
               <div className={`component-info-card ${isDarkMode ? 'dark' : 'light'}`}>
                 <div className="component-label">
                   {label}: {
                     typeof value === 'object' && value !== null ? (
                       <>
-                        {value.value} {
-                          (() => {
-                            if ((firstTwoChars === 'VC' || firstTwoChars === 'CC') && lastTwoChars === 'VS') return 'V';
-                            if ((firstTwoChars === 'VC' || firstTwoChars === 'CC') && lastTwoChars === 'CS') return 'A';
-                            if (firstChar === 'A' || firstChar === 'V') return 'V';
-                            if (firstChar === 'R') return 'Ω';
-                            if (firstChar === 'C') return 'F';
-                            if (firstChar === 'L') return 'H';
-                            return '';
-                          })()
-                        }<br />
-                        {
-                          value.dependentNode1 && value.dependentNode2 ? (
-                            <>
-                              Dependent Node 1: {value.dependentNode1}<br />
-                              Dependent Node 2: {value.dependentNode2}
-                            </>
-                          ) : (
-                            value.Vcontrol && <> Control: {value.Vcontrol}</>
-                          )
-                        }
+                        {value.impedance ? (
+                          <>
+                            Impedance: {value.impedance} Ω<br />
+                            Electrical Length: {value.electrical_length}°
+                          </>
+                        ) : value.value ? (
+                          <>
+                            {value.value} {
+                              (() => {
+                                if ((firstTwoChars === 'VC' || firstTwoChars === 'CC') && lastTwoChars === 'VS') return 'V';
+                                if ((firstTwoChars === 'VC' || firstTwoChars === 'CC') && lastTwoChars === 'CS') return 'A';
+                                if (firstChar === 'A' || firstChar === 'V') return 'V';
+                                if (firstChar === 'R') return 'Ω';
+                                if (firstChar === 'C') return 'F';
+                                if (firstChar === 'L') return 'H';
+                                return '';
+                              })()
+                            }<br />
+                            {
+                              value.dependentNode1 && value.dependentNode2 ? (
+                                <>
+                                  Dependent Node 1: {value.dependentNode1}<br />
+                                  Dependent Node 2: {value.dependentNode2}
+                                </>
+                              ) : (
+                                value.Vcontrol && <> Control: {value.Vcontrol}</>
+                              )
+                            }
+                            {value.phase && <><br />Phase: {value.phase}°</>}
+                          </>
+                        ) : null}
                       </>
                     ) : (
                       value ?? "No value available"
