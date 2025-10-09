@@ -23,6 +23,47 @@ def _static_dir(path_segment: str = ""):
     os.makedirs(base_dir, exist_ok=True)
     return os.path.join(base_dir, path_segment) if path_segment else base_dir
 
+UNIT_SCALE = {'f': 1e-15, 'p': 1e-12, 'n': 1e-9, 'u': 1e-6, 'm': 1e-3, 'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e12}
+
+
+def parse_value(v, unit):
+    if unit is None: return float(v)
+    for k, s in UNIT_SCALE.items():
+        if unit.startswith(k):
+            return float(v) * s
+    return float(v)
+
+def theta_in_rad(theta):
+    return float(theta)*np.pi/180
+
+def Transmission_Line(Zc,theta,f0,f,Z0,name):
+    #theta in radian
+    abcd=np.zeros([len(f),2,2],dtype=complex)
+    Yc=1/Zc
+    theta=theta*f.f/f0
+    abcd[:,0,0]=np.cos(theta)
+    abcd[:,1,1]=np.cos(theta)
+    abcd[:,1,0]=1j*Yc*np.sin(theta)
+    abcd[:, 0, 1] = 1j*Zc * np.sin(theta)
+    s=rf.network.a2s(abcd,Z0)
+    TL=rf.Network(s=s,frequency=f,name=name)
+    return TL
+
+
+
+def Open_Stub(Zc,theta,f0,f,Z0,name):
+    #theta in radian
+    TL = Transmission_Line(Zc,theta,f0,f,Z0,name)
+    Zopen=TL.z[:,0,0]
+    Openstub = rf.Network(z=Zopen, frequency=f, name=name)
+    return Openstub
+
+def Short_Stub(Zc,theta,f0,f,Z0,name):
+    #theta in radian
+    TL = Transmission_Line(Zc,theta,f0,f,Z0,name)
+    Yshort=TL.y[:,0,0]
+    Shortstub =  rf.Network(y=Yshort, frequency=f, name=name)
+    return Shortstub
 
 class run_s_parameter:
     """A corrected tool to analyze circuits from netlist files and return S-parameters"""
@@ -71,7 +112,7 @@ class run_s_parameter:
     def create_resistor_network(self, resistance_value, frequency_range):
         """Create a resistor network for RF analysis"""
         # Use standard lossless media with system impedance
-        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=self.z0_system, gamma=1j)
+        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0_port=self.z0_system, gamma=1j)
         resistor_network = media.resistor(resistance_value)
         return resistor_network
     
@@ -88,7 +129,6 @@ class run_s_parameter:
         return inductor_network
     
     def create_transmission_line_network(self, electrical_length_deg_ref, impedance, frequency_range, f_ref=1.0):
-
         """
         Create a frequency-dependent transmission line network.
         electrical_length_deg_ref: Electrical length at reference frequency (degrees)
@@ -99,9 +139,8 @@ class run_s_parameter:
         # Convert GHz to Hz for calculation
         f_ref_hz = f_ref * 1e9
         theta_deg = electrical_length_deg_ref * (frequency_range.f / f_ref_hz)
-        
         # Build network at each frequency
-        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=impedance, gamma=1j)
+        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=self.z0_system, gamma=1j)
         # Use skrf's 'line' for the full frequency array
         transmission_line = media.line(electrical_length_deg_ref, unit='deg')
         # Override theta per frequency
@@ -120,7 +159,7 @@ class run_s_parameter:
         f_ref_hz = f_ref * 1e9
         theta_deg = electrical_length_deg_ref * (frequency_range.f / f_ref_hz)
         
-        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=impedance, gamma=1j)
+        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=self.z0_system, gamma=1j)
         # Build 1-port shorted stub
         short_termination = media.short()
         stub_line = media.line(electrical_length_deg_ref, unit='deg')
@@ -145,7 +184,7 @@ class run_s_parameter:
         f_ref_hz = f_ref * 1e9
         theta_deg = electrical_length_deg_ref * (frequency_range.f / f_ref_hz)
         
-        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=impedance, gamma=1j)
+        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0=self.z0_system, gamma=1j)
         open_termination = media.open()
         stub_line = media.line(electrical_length_deg_ref, unit='deg')
         open_stub_1port = stub_line ** open_termination
@@ -231,7 +270,6 @@ class run_s_parameter:
             node1 = parts[1]
             node2 = parts[2]
             component_type = component_name[0].upper()
-            
             try:
                 if component_type == 'R':
                     resistance = self.convert_value_to_number(parts[3])
@@ -438,7 +476,7 @@ class run_s_parameter:
                     logger.info(f"  Adding remaining SHUNT {shunt['name']} at node {node}")
                     abcd_total = np.matmul(abcd_total, shunt['network'].a)
         
-        logger.info("  Cascade complete!")
+        logger.info(" Cascade complete!")
         return abcd_total
     
     def calculate_circuit_s_parameters(self, frequency_range, p1n1, p1n2, p2n1, p2n2):
@@ -517,44 +555,124 @@ class run_s_parameter:
                 print(f"  Value: {value} {unit}")
             print()
     
-    def __call__(self, start_frequency, end_frequency, p1n1, p1n2, p2n1, p2n2, netlist_file='netlist.txt'):
+    def __call__(self,netlist):
         """Main interface function to calculate S-parameters"""
-        logger.info(f"=== Starting S-Parameter Analysis ===")
-        logger.info(f"Frequency range: {start_frequency} to {end_frequency} GHz")
-        logger.info(f"Port 1: {p1n1}-{p1n2}, Port 2: {p2n1}-{p2n2}")
-        logger.info(f"System impedance: {self.z0_system} Ω")
+        elements = {}
+        nodes = {}
+        node = []
+        freq = None
+        media = None
         
-        if start_frequency == end_frequency:
-            frequency_range = rf.Frequency(start=start_frequency, stop=start_frequency, npoints=1, unit='GHz')
+        # First pass: find frequency line and create freq/media objects
+        for line in netlist.strip().splitlines():
+            tokens = line.split()
+            if tokens[0] == 'f':
+                fmin = float(tokens[1])
+                fmax = float(tokens[2])
+                npoints = int(tokens[3])
+                funits = tokens[4]
+                freq = rf.Frequency(fmin, fmax, npoints, funits)
+                media = rf.DefinedGammaZ0(freq, z0=50, gamma=1j * freq.w / rf.c)
+                break
+        
+        # If no frequency line found, create default
+        if freq is None:
+            freq = rf.Frequency(0.1, 1.0, 101, 'GHz')
+            media = rf.DefinedGammaZ0(freq, z0=50, gamma=1j * freq.w / rf.c)
+        
+        # Second pass: process all components
+        for line in netlist.strip().splitlines():
+            tokens = line.split()
+            if tokens[0] == 'f':
+                continue  # Skip frequency line in second pass
+            else:
+                if len(tokens) == 3:
+                    # Handle ports and ground with 3 tokens
+                    name, n1, n2 = tokens[:3]
+                    if name.startswith('Port'):
+                        value = 50.0  # Default port impedance
+                    elif name.startswith('Ground'):
+                        value = 1.0   # Default ground value
+                    else:
+                        # Skip lines that don't have enough information
+                        continue
+                elif len(tokens) == 4 or len(tokens) == 5:
+                    name, n1, n2, val = tokens[:4]
+                    unit = tokens[4] if len(tokens) > 4 else None
+                    value = parse_value(val, unit)
+                elif len(tokens) > 4:
+                    name, n1, n2, Zc, theta, f0 = tokens[:6]
+                    unit = tokens[6]
+                    f0 = parse_value(f0, unit)
+                    theta = theta_in_rad(theta)
+                    Zc = float(Zc)
+                else:
+                    # Skip lines that don't have enough tokens
+                    continue
+
+                prefix = name[0].upper()
+                if prefix == 'C':
+                    net = media.capacitor(value, name=name)
+                elif prefix == 'L':
+                    net = media.inductor(value, name=name)
+                elif prefix == 'R':
+                    net = media.resistor(value, name=name)
+                elif prefix == 'P':
+                    net = rf.Circuit.Port(freq, name=name, z0=value)
+                elif prefix == 'G':
+                    net = rf.Circuit.Ground(freq, name='gnd')
+                elif prefix == 'T':
+                    net = Transmission_Line(Zc, theta, f0, freq, 50, name)
+                elif prefix == 'O':
+                    net = Open_Stub(Zc, theta, f0, freq, 50, name)
+                elif prefix == 'S':
+                    net = Short_Stub(Zc, theta, f0, freq, 50, name)
+                elif prefix == '#':
+                    continue
+                else:
+                    raise ValueError(f"Unsupported component {name}")
+                if prefix not in ('P', 'G', 'O', 'S'):
+                    elements[name] = {'net': net, 'nodes': (int(n1), int(n2))}
+                else:
+                    elements[name] = {'net': net, 'nodes': (int(n1),)}
+                node.append(int(n1))
+                node.append(int(n2))
+
+        node = list(dict.fromkeys(node))
+        logger.info(f"Unique nodes: {node}")
+        logger.info(f"Elements: {list(elements.keys())}")
+        
+        # -----------------------------
+        # Step 2: Create connection rows for each node
+        # -----------------------------
+        # Node rows = list of lists, each sublist contains all ports connected to that node
+        connection = []
+        for i in node:
+            coni = []
+            for j in elements:
+                nodej = elements[j].get('nodes')
+                if i in nodej:
+                    if i == nodej[0]:
+                        coni.append((elements[j].get('net'), 0))
+                        logger.info(f"Node {i}: Connected {j} port 0")
+                    elif i == nodej[1]:
+                        if elements[j].get('net').name != 'gnd':
+                            coni.append((elements[j].get('net'), 1))
+            connection.append(coni)
+            logger.info(f"Node {i} connections: {len(coni)} components")
+        
+        logger.info(f"Total connection matrix size: {len(connection)}")
+        ckt = rf.Circuit(connection)
+        ntw = ckt.network
+        self.network = ntw
+        logger.info(f"Network created with shape: {ntw.s.shape if hasattr(ntw, 's') else 'No S-parameters'}")
+        
+        # Return S-parameter array instead of Network object
+        if hasattr(ntw, 's'):
+            return ntw.s
         else:
-            frequency_range = rf.Frequency(start=start_frequency, stop=end_frequency, npoints=101, unit='GHz')
-        
-        components = self.read_and_parse_netlist(netlist_file)
-        if not components:
-            logger.error("Failed to read netlist file")
+            logger.error("Network object does not have S-parameters")
             return None
-        
-        self.print_component_summary()
-        
-        if not self.validate_ports(p1n1, p1n2, p2n1, p2n2):
-            logger.error("Invalid port configuration")
-            return None
-        
-        s_parameters = self.calculate_circuit_s_parameters(frequency_range, p1n1, p1n2, p2n1, p2n2)
-        
-        if s_parameters is not None:
-            logger.info(f"S-parameter calculation successful!")
-            logger.info(f"S-parameter matrix shape: {s_parameters.shape}")
-            if len(frequency_range.f) > 0:
-                logger.info(f"\nSample S-parameters at {frequency_range.f[0]/1e9:.3f} GHz:")
-                logger.info(f"  S11 = {s_parameters[0, 0, 0]:.6f}")
-                logger.info(f"  S12 = {s_parameters[0, 0, 1]:.6f}")  
-                logger.info(f"  S21 = {s_parameters[0, 1, 0]:.6f}")
-                logger.info(f"  S22 = {s_parameters[0, 1, 1]:.6f}")
-        else:
-            logger.error("S-parameter calculation failed!")
-        
-        return s_parameters
 def plot_s_parameters(frequency_range, s_parameters, save_dir='static'):
     """
     Plot S-parameters (magnitude and phase) vs frequency
@@ -564,23 +682,39 @@ def plot_s_parameters(frequency_range, s_parameters, save_dir='static'):
     frequency_range : rf.Frequency object
         Frequency range from scikit-rf
     s_parameters : numpy array
-        S-parameter matrix with shape (nfreqs, 2, 2)
+        S-parameter matrix with shape (nfreqs, nports, nports)
     save_dir : str
         Directory to save plots
     """
     import os
     os.makedirs(save_dir, exist_ok=True)
     
+    # Debug: Check S-parameter shape
+    logger.info(f"S-parameters shape: {s_parameters.shape}")
+    logger.info(f"Frequency range: {frequency_range}")
+    
     freq_ghz = frequency_range.f / 1e9  # Convert Hz to GHz
+    
+    # Check if we have a 2-port network
+    if len(s_parameters.shape) != 3:
+        logger.error(f"Expected 3D S-parameter array, got shape: {s_parameters.shape}")
+        return None
+    
+    nfreqs, nports1, nports2 = s_parameters.shape
+    logger.info(f"S-parameter dimensions: {nfreqs} frequencies, {nports1}x{nports2} ports")
     
     # Create figure with 2 subplots (magnitude and phase)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
     
-    # Plot Magnitude in dB
-    s11_db = 20 * np.log10(np.abs(s_parameters[:, 0, 0]))
-    s21_db = 20 * np.log10(np.abs(s_parameters[:, 1, 0]))
-    s12_db = 20 * np.log10(np.abs(s_parameters[:, 0, 1]))
-    s22_db = 20 * np.log10(np.abs(s_parameters[:, 1, 1]))
+    # Plot Magnitude in dB - handle different port configurations
+    if nports1 >= 2 and nports2 >= 2:
+        s11_db = 20 * np.log10(np.abs(s_parameters[:, 0, 0]))
+        s21_db = 20 * np.log10(np.abs(s_parameters[:, 1, 0]))
+        s12_db = 20 * np.log10(np.abs(s_parameters[:, 0, 1]))
+        s22_db = 20 * np.log10(np.abs(s_parameters[:, 1, 1]))
+    else:
+        logger.error(f"Not enough ports for 2x2 S-parameter matrix. Got {nports1}x{nports2}")
+        return None
     
     ax1.plot(freq_ghz, s11_db, 'b-', label='S11', linewidth=2)
     ax1.plot(freq_ghz, s21_db, 'r-', label='S21', linewidth=2)
@@ -619,3 +753,37 @@ def plot_s_parameters(frequency_range, s_parameters, save_dir='static'):
     plt.close()
     
     return save_path
+
+# spar=run_s_parameter()
+# netlist = """
+# f 0.1 2 501 GHz
+# C1 1 0 3.22 pF
+# C2 1 2 82.25 fF
+# L2 1 2 8.893 nH
+# C3 2 0 3.22 pF
+# Port1 1 0 50
+# Port2 2 0 50
+# Ground 0 1 1
+# """
+# # netlist="""
+# # f 0.1 2 501 GHz
+# # TL1 1 2 57.74 60 1 GHz
+# # OS1 1 0 57.74 30 1 GHz
+# # OS2 2 0 57.74 30 1 GHz
+# # Port1 1 0 50
+# # Port2 2 0 50
+# # Ground 0 1 1
+# # """
+# # netlist="""
+# # f 0.1 2 501 GHz
+# # L 1 2 7.96 nH
+# # C1 1 0 3.18 pF
+# # C2 2 0 3.18 pF
+# # Port1 1 0 50
+# # Port2 2 0 50
+# # Ground 0 1 1
+# # """
+# spar.__call__(netlist)
+# s_parameter=spar.network.s
+# freq=spar.network.frequency
+# plot_s_parameters(freq, s_parameter)

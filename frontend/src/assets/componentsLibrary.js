@@ -1258,7 +1258,7 @@ CS: {
     }
 },
 TL: {
-    id: 3,
+    id: 19,
     name: 'TL',
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
         // Calculate midpoint
@@ -1330,14 +1330,14 @@ TL: {
     }
 },
 OPSTUB: {
-    id: 3,
+    id: 20,
     name: 'OPSTUB',
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
         // Calculate midpoint
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
         
-        // Calculate the angle of the line
+        // Calculate the angle normally (no 180 degree flip needed)
         const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
         
         // Calculate the total line length
@@ -1370,14 +1370,6 @@ OPSTUB: {
             .attr("stroke", "black")
             .attr("stroke-width", 2);
         
-        // rotatedGroup.append("line")
-        //     .attr("x1", rectWidth/2)
-        //     .attr("y1", 0)
-        //     .attr("x2", halfLength)
-        //     .attr("y2", 0)
-        //     .attr("stroke", "black")
-        //     .attr("stroke-width", 2);
-        
         // Draw rectangle
         rotatedGroup.append("rect")
             .attr("x", -rectWidth/2)
@@ -1396,20 +1388,20 @@ OPSTUB: {
             .attr("font-family", "Arial, sans-serif")
             .attr("font-size", "12px")
             .attr("fill", "black")
-            .text("TL");
+            .text("OPSTUB");
         
         return tlGroup;
     }
 },
 SSTUB: {
-    id: 3,
+    id: 21,
     name: 'SSTUB',
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2) => {
         // Calculate midpoint
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
         
-        // Calculate the angle of the line
+        // Calculate the angle normally (no 180 degree flip needed)
         const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
         
         // Calculate the total line length
@@ -1468,7 +1460,7 @@ SSTUB: {
             .attr("font-family", "Arial, sans-serif")
             .attr("font-size", "12px")
             .attr("fill", "black")
-            .text("TL");
+            .text("SSTUB");
         
         // Draw ground symbol at the end of transmission line
         const groundStartY = 15; // Distance from the line to start ground symbol
@@ -1500,6 +1492,85 @@ SSTUB: {
         });
         
         return tlGroup;
+    }
+},
+port: {
+    id: 22,
+    name: 'port',
+    component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2, value = null) => {
+        // Calculate midpoint
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        // Calculate the angle
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        
+        // Calculate the total line length
+        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const halfLength = lineLength / 2;
+        
+        // Port symbol dimensions
+        const circleRadius = 8;
+        const verticalLineLength = 15;
+        
+        // Get impedance value
+        const impedance = value && typeof value === 'object' ? value.impedance_Zo : (value || '50');
+        
+        // Create group for port component
+        const portGroup = svg.append("g")
+            .attr("id", lineId)
+            .style("cursor", "pointer")
+            .on("click", () => setSelectedLine(lineId))
+            .on("dblclick", () => handleLineDoubleClick(lineId))
+            .on("mouseover", (e) => showLineCurrent(e, lineId))
+            .on("mouseout", () => hideLineCurrent());
+        
+        // Create a group for the rotated component
+        const rotatedGroup = portGroup.append("g")
+            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+        
+        // Draw connecting line from start to circle
+        rotatedGroup.append("line")
+            .attr("x1", -halfLength)
+            .attr("y1", 0)
+            .attr("x2", -circleRadius)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+      
+        // Draw circle
+        rotatedGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 0)
+            .attr("r", circleRadius)
+            .attr("fill", "white")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+        
+       
+        
+        // Add "PORT" label (this will rotate with the symbol)
+        rotatedGroup.append("text")
+            .attr("x", 0)
+            .attr("y", circleRadius + 15)
+            .attr("text-anchor", "middle")
+            .attr("font-family", "Arial, sans-serif")
+            .attr("font-size", "10px")
+            .attr("fill", "red")
+            .text("PORT");
+        
+        // Add impedance value label
+        rotatedGroup.append("text")
+            .attr("x", 0)
+            .attr("y", circleRadius + 28)
+            .attr("text-anchor", "middle")
+            .attr("font-family", "Arial, sans-serif")
+            .attr("font-size", "8px")
+            .attr("fill", "blue")
+            .text(`${impedance}Ω`);
+        
+        return portGroup;
     }
 }
 }

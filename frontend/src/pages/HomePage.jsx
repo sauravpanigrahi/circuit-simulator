@@ -9,7 +9,8 @@ const HomePage = () => {
   const [animatedStats, setAnimatedStats] = useState({
     components: 0,
     analysisTypes: 0,
-    browserBased: 0
+    browserBased: 0,
+    parameterType: 0
   });
   const statsRef = useRef(null);
   const [statsAnimated, setStatsAnimated] = useState(false);
@@ -82,9 +83,10 @@ const HomePage = () => {
 
   const animateStats = () => {
     const stats = [
-      { key: 'components', target: 15 },
+      { key: 'components', target: 16 },
       { key: 'analysisTypes', target: 3 },
-      { key: 'browserBased', target: 100 }
+      { key: 'browserBased', target: 100 },
+      { key: 'parameterType', target:3}
     ];
 
     stats.forEach(({ key, target }) => {
@@ -197,7 +199,7 @@ const HomePage = () => {
                   About
                 </a>
               </li>
-              <li className="nav-item">
+              {/* <li className="nav-item">
                 <a 
                   className="nav-link nav-link-custom" 
                   href="#contact" 
@@ -205,7 +207,7 @@ const HomePage = () => {
                 >
                   Contact
                 </a>
-              </li>
+              </li> */}
               <li className="nav-item ms-2">
                 <button
                   type="button"
@@ -271,36 +273,30 @@ const HomePage = () => {
       {/* Stats Section */}
       <section className="stats-section py-5" ref={statsRef}>
         <div className="container">
-          <div className="row text-center">
-            <div className="col-lg-3 col-md-6 mb-4">
-              <div className="stat-card scroll-reveal" id="stat-1">
-                <h2 className="display-4 text-primary fw-bold mb-2">
-                  {animatedStats.components}+
-                </h2>
-                <p className="lead text-light opacity-75">Electronic Components</p>
-              </div>
+          <div className="d-flex flex-wrap justify-content-center text-center">
+            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-1" style={{ minWidth: '200px', maxWidth: '220px' }}>
+              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.components}+</h2>
+              <p className="lead text-light opacity-75">Electronic Components</p>
             </div>
-            <div className="col-lg-3 col-md-6 mb-4">
-              <div className="stat-card scroll-reveal" id="stat-2">
-                <h2 className="display-4 text-primary fw-bold mb-2">
-                  {animatedStats.analysisTypes}
-                </h2>
-                <p className="lead text-light opacity-75">Analysis Types</p>
-              </div>
+
+            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-2" style={{ minWidth: '200px', maxWidth: '220px' }}>
+              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.analysisTypes}</h2>
+              <p className="lead text-light opacity-75">Analysis Types</p>
             </div>
-            <div className="col-lg-3 col-md-6 mb-4">
-              <div className="stat-card scroll-reveal" id="stat-3">
-                <h2 className="display-4 text-primary fw-bold mb-2">∞</h2>
-                <p className="lead text-light opacity-75">Circuit Possibilities</p>
-              </div>
+
+            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-3" style={{ minWidth: '200px', maxWidth: '220px' }}>
+              <h2 className="display-4 text-primary fw-bold mb-2">∞</h2>
+              <p className="lead text-light opacity-75">Circuit Possibilities</p>
             </div>
-            <div className="col-lg-3 col-md-6 mb-4">
-              <div className="stat-card scroll-reveal" id="stat-4">
-                <h2 className="display-4 text-primary fw-bold mb-2">
-                  {animatedStats.browserBased}%
-                </h2>
-                <p className="lead text-light opacity-75">Browser-Based</p>
-              </div>
+
+            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-4" style={{ minWidth: '200px', maxWidth: '220px' }}>
+              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.browserBased}%</h2>
+              <p className="lead text-light opacity-75">Browser-Based</p>
+            </div>
+
+            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-5" style={{ minWidth: '200px', maxWidth: '220px' }}>
+              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.parameterType}</h2>
+              <p className="lead text-light opacity-75">Parameter Types</p>
             </div>
           </div>
         </div>
@@ -411,7 +407,7 @@ const HomePage = () => {
       </section>
 
       {/* Contact Section */}
-      <section className="contact-section py-5" id="contact">
+      {/*<section className="contact-section py-5" id="contact">
         <div className="container">
           <div className="text-center mb-5">
             <h2 className="display-4 fw-bold text-light mb-4 scroll-reveal" id="contact-title">
@@ -428,10 +424,10 @@ const HomePage = () => {
                   <div className="col-md-6">
                     <div className="contact-info">
                       <h4 className="text-light mb-3">Contact Information</h4>
-                      {/* <p className="text-light opacity-75 mb-2">
+                      <p className="text-light opacity-75 mb-2">
                         <i className="bi bi-envelope me-2"></i>
                         info@circuitsim.com
-                      </p> */}
+                      </p>
                       <p className="text-light opacity-75 mb-2">
                         <i className="bi bi-github me-2"></i>
                         github.com/sauravpanigrahi/circuit-simulator
@@ -463,7 +459,7 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Footer */}
       <footer className="footer-section text-center py-4">

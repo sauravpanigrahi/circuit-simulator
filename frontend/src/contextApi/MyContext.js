@@ -1,28 +1,17 @@
 import React, { createContext, useContext, useEffect, useState} from "react";
-// import * as d3 from 'd3'
-import { toast
-
- } from "react-toastify";
+import { toast} from "react-toastify";
 const MyContext = createContext();
-
 export const ContextProvider = ({ children }) => {
   const [connectedDots, setConnectedDots] = useState([]);
   const [lines, setLines] = useState([]); // State variable to track lines
   const [selectedLine, setSelectedLine] = useState();
   const [selectedComponent, setSelectedComponent] = useState('W')
   const [valMap, setValMap] = useState(new Map());
-  // const [imageSrc, setImageSrc] = useState('');
-
   const [selectedNodes, setSelectedNodes] = useState(new Map()); // to select nodes that are part of the schematics
-
-  // console.log(selectedNodes)
-
   const [updatedNodes, setUpdatedNodes] = useState(new Map())
-
   const [simData, setSimData] = useState("");
-
   const [analysisType, setAnalysisType] = useState("dc"); // New state for analysis type
-  const[parameterType,setparameterType]=useState("z")
+  const[parameterType,setparameterType]=useState("")
   const [frequency, setFrequency] = useState();
   const [startfrequency,setstartfrequency]=useState();
   const [endfrequency,setendfrequency]=useState();
@@ -32,14 +21,15 @@ export const ContextProvider = ({ children }) => {
   const [p2n1, setp2n1] = useState();
   const [p2n2, setp2n2] = useState();
   const [impedance,setimpedance]=useState();
+  const [impedance_Zo,setimpedance_Zo]=useState();
   const [electrical_length,setelectrical_length]=useState();
-  const [length,setlength]=useState();
-
-
+  const [frequency_prop,setfrequency_prop]=useState();
+  const [frequency_prop_unit,setfrequency_prop_unit]=useState("GHz");
+  const [frequency_num,setfrequency_num]=useState();
   useEffect(()=>{
     const handleUpdateNodes = ()=>{
       const newMap = new Map()
-      let i = 1;
+      let i = 0;
       for(const [key] of selectedNodes)
       {
         newMap.set(key, i);
@@ -49,19 +39,15 @@ export const ContextProvider = ({ children }) => {
     }
     return handleUpdateNodes();
   }, [selectedNodes])
-
-console.log(valMap)
+// console.log(valMap)
 let sourceCnt = 0;
 let temp = {};
-
   const components = [];
-
   valMap.forEach((value, key) => {
     const node1 = updatedNodes.get(key.split('_')[1]);
     const node2 = updatedNodes.get(key.split('_')[2]);
     const type = key.split('_')[0];
 // First character indicates the component type
-
     let component = {
       type: '',
       id: '',
@@ -75,8 +61,9 @@ let temp = {};
       Vcontrol:null,
       phase:null,
       impedance:null,
+      impedance_Zo:null,
       electrical_length:null,
-      length:null,
+      // frequency_prop:null
     };
 
     switch (type) {
@@ -220,7 +207,7 @@ let temp = {};
             if (typeof value === 'object') {
               component.impedance = value.impedance;
               component.electrical_length = value.electrical_length
-              component.length = value.length
+              // component.frequency_prop=value.frequency_prop
             } else {
               component.impedance = `${value}`;
             }
@@ -232,7 +219,7 @@ let temp = {};
             if (typeof value === 'object') {
               component.impedance = value.impedance;
               component.electrical_length = value.electrical_length
-              component.length = value.length
+              // component.frequency_prop=value.frequency_prop
             } else {
               component.impedance = `${value}`;
             }
@@ -244,11 +231,22 @@ let temp = {};
             if (typeof value === 'object') {
               component.impedance = value.impedance;
               component.electrical_length = value.electrical_length
-              component.length = value.length
+              // component.frequency_prop=value.frequency_prop
             } else {
               component.impedance = `${value}`;
             }
             temp[key] = `SS${components.filter(comp => comp.type === 'Short Stub').length + 1}`;
+            break;   
+          case "port":
+            component.type="port";
+            component.id = `port${components.filter(comp => comp.type === 'port').length + 1}`;
+            if (typeof value === 'object') {
+              component.impedance_Zo = value.impedance_Zo;
+              
+            } else {
+              component.impedance_Zo = `${value}`;
+            }
+            temp[key] = `port${components.filter(comp => comp.type === 'port').length + 1}`;
             break;   
       default:
         component.type = 'Generic';
@@ -258,23 +256,18 @@ let temp = {};
 
     components.push(component);
   });
-  
   const getCurrentValue = (lineId, simData, temp) => {
   if (!simData || !simData.current || !temp[lineId]) {
     return "No data";
   }
-  
   const currentKey = `I_${temp[lineId]}`;
   const currentValue = simData.current[currentKey];
-  
   if (currentValue === undefined || currentValue === null) {
     return "No data";
   }
-  
   // Convert to number and take absolute value if negative
   const numericValue = parseFloat(currentValue);
   const absoluteValue = Math.abs(numericValue);
-  
   // Format the current value with appropriate units
   if (absoluteValue >= 1) {
     return `${absoluteValue.toFixed(3)} A`;
@@ -286,11 +279,9 @@ let temp = {};
     return `${absoluteValue.toExponential(3)} A`;
   }
 };
-
 // Updated display component in the right panel
 const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
   const firstChar = lineId.slice(0, 2); // Use first 2 characters for ammeter (AM)
-  
   if (firstChar === 'am') {
     return (
       <div style={{
@@ -312,10 +303,8 @@ const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
       </div>
     );
   }
-  
   return null;
 };
-
 const sendSimulationData = async () => {
   try {
     // ✅ Find ground node (node with value 0)
@@ -326,30 +315,24 @@ const sendSimulationData = async () => {
         break;
       }
     }
-
     // ✅ Stop simulation if no ground node found
     if (!groundNode) {
       toast.error("Please set a ground node before running the simulation.");
       return; // ❌ Exit function early
     }
-
     // Convert the components array into a JSON string
     const netstring = JSON.stringify({
       components: components,
       groundNode: updatedNodes.get(groundNode) // Now safe because groundNode is guaranteed
     }, null, 2);
-
     const body = { 
       netList: netstring, 
       numberNodes: updatedNodes.size,
       analysisType: analysisType,
       frequency: parseFloat(frequency) || 50,
-     
     };
-    
     console.log('Sending simulation data:', body);
     console.log('Starting fetch request...');
-    
     const response = await fetch('https://circuit-simulator.onrender.com/simulation', {
       method: 'POST',
       headers: {
@@ -358,31 +341,24 @@ const sendSimulationData = async () => {
       },
       body: JSON.stringify(body),
     });
-    
     console.log('Fetch response received:', response);
     console.log('Response status:', response.status);
-    
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Server error response:', errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
     const data = await response.json();
     console.log('Simulation results:', data);
-    
     setSimData(data);
     toast.success("Simulation completed successfully!");
-    
   } catch (error) {
     console.error('=== COMPLETE ERROR DETAILS ===');
     console.error(error);
     toast.error(`Simulation failed: ${error.message}`);
-
     // alert(`Simulation failed: ${error.message}`);
   }
 };
-
   const sendparameterData = async () => {
     try {
       // Find ground node (node with value 0)
@@ -393,19 +369,16 @@ const sendSimulationData = async () => {
           break;
         }
       }
-
       // ✅ Stop simulation if no ground node found
     // if (!groundNode) {
     //   toast.error("Please set a ground node before running the simulation.");
     //   return; // ❌ Exit function early
     // }
-  
       // Convert the components array into a JSON string
       const netstring = JSON.stringify({
         components: components,
         groundNode: updatedNodes.get(groundNode)  // Use node 1 as default ground if none specified
     }, null, 2);
-  
       const body = { 
         netList: netstring, 
         numberNodes: updatedNodes.size,
@@ -415,23 +388,21 @@ const sendSimulationData = async () => {
         p1n2: parameterType === "s" ? (p1n2 ? parseInt(p1n2) : 0) : (p1n2 ? parseInt(p1n2) : null),
         p2n1: p2n1 ? parseInt(p2n1) : null,
         p2n2: parameterType === "s" ? (p2n2 ? parseInt(p2n2) : 0) : (p2n2 ? parseInt(p2n2) : null),
-       
-        impedance:impedance,
-        electrical_length:electrical_length,
-        length:length,
+        impedance:impedance||50,
+        electrical_length:electrical_length||90,
         startingfrequency: parseFloat(startfrequency) || 0.1,
         endfrequency:parseFloat(endfrequency)|| 1,
-
+        frequency_prop:parseFloat(frequency_prop)||1,
+        frequency_prop_unit:frequency_prop_unit||"GHz",
+        impedance_Zo:impedance_Zo||50,
+        frequency_num:parseInt(frequency_num)||501
       };
-      if(!p1n1 || !p2n1 || (parameterType !== "s" && (!p1n2 || !p2n2))){
-        toast.error("please select port nodes")
-        return;
-      }
-    
-  
+      // if(!p1n1 || !p2n1 || (parameterType !== "s" && (!p1n2 || !p2n2))){
+      //   toast.error("please select port nodes")
+      //   return;
+      // }
       console.log('Sending parameter data:', body);
       console.log('Starting fetch request...');
-      
       const response = await fetch('https://circuit-simulator.onrender.com/parameter', {
         method: 'POST',
         headers: {
@@ -440,24 +411,17 @@ const sendSimulationData = async () => {
         },
         body: JSON.stringify(body),
       });
-      
       console.log('Fetch response received:', response);
       console.log('Response status:', response.status);
-      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server error response:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
       const data = await response.json();
       console.log('parameter results:', data);
       setparametervalue(data);
       console.log("parameter",parametervalue)
-      // if (data.status === 'error') {
-      //   throw new Error(data.error || 'Unknown error occurred during simulation');
-      // }
-      
       setSimData(data);
       toast.success('Parameter Evaluated successfully!')
       // alert('Parameter Evaluated successfully!');
@@ -648,8 +612,16 @@ const sendSimulationData = async () => {
         valMap,
         setValMap,
         impedance,
+        impedance_Zo,
+        setimpedance_Zo,
         electrical_length,
-        length,
+        setelectrical_length,
+        frequency_prop,
+        setfrequency_prop,
+        frequency_prop_unit,
+        setfrequency_prop_unit,
+        frequency_num,
+        setfrequency_num,
         temp,
        
       }}

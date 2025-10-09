@@ -453,6 +453,10 @@ def parameter():
             return jsonify({"error": "Components are empty"}), 400
 
         cctt = ""
+        freq =""
+        grnd=""
+        freq_num=""
+        component_lines=[]
         numberOfNodes = ckt_data.get("numberNodes", 0)
         parameterType = ckt_data.get("parameterType", "z").lower()
         groundNode = netlist.get("groundNode")
@@ -481,14 +485,22 @@ def parameter():
         except (ValueError, TypeError):
             p2n2 = "0"
             logger.warning("Invalid p2n2 value, defaulting to 0")
+        try:
+            freqency_prop = float(ckt_data.get("frequency_prop", 1))
+            freqency_prop_unit = str(ckt_data.get("frequency_prop_unit", "GHz"))
+        except (ValueError, TypeError):
+            freqency_prop = 1
+            freqency_prop_unit = "GHz"
+            logger.warning("Invalid frequency prop values, using defaults")
 
         logger.info(f"Parsed ports → p1n1: {p1n1}, p1n2: {p1n2}, p2n1: {p2n1}, p2n2: {p2n2}")
 
         # Parse frequencies
         try:
             frequency = float(ckt_data.get("frequency", 50))
-            startfrequency = float(ckt_data.get("startingfrequency", 0.1))
-            endfrequency = float(ckt_data.get("endfrequency", 1))
+            startfrequency = ckt_data.get("startingfrequency", 0.1)
+            endfrequency = ckt_data.get("endfrequency", 1)
+            freq_num=ckt_data.get("frequency_num", 501)
             logger.info(f"Start frequency: {startfrequency}")
             logger.info(f"End frequency: {endfrequency}")
         except (ValueError, TypeError):
@@ -503,15 +515,13 @@ def parameter():
             id_ = comp.get('id', '')
             node1 = comp.get('node1', '')
             node2 = comp.get('node2', '')
-
             depnode3 = ''
             depnode4 = ''
             depVoltage = ''
             phase = ''
             impedance = ''
             electrical_length = ''
-            length = ''
-
+            impedance_Zo=''
             raw_value = comp.get('value', '')
 
             logger.info(f"Processing component {id_}: type={type_prefix}, raw_value={raw_value}")
@@ -524,7 +534,9 @@ def parameter():
                 phase = raw_value.get('phase', '')
                 impedance = raw_value.get('impedance', '50')
                 electrical_length = raw_value.get('electrical_length', '90')
-                length = raw_value.get('length', '')
+                impedance_Zo = raw_value.get('impedance_Zo', '50')
+                logger.info(f"Extracted from dict - impedance_Zo: {impedance_Zo}")
+                
             else:
                 value = raw_value
                 depnode3 = comp.get('dependentnode1', '')
@@ -533,8 +545,10 @@ def parameter():
                 phase = comp.get('phase', '0')
                 impedance = comp.get('impedance', '50')
                 electrical_length = comp.get('electrical_length', '90')
-                length = comp.get('length', '')
-
+                # For ports, also try to get impedance_Zo from component level
+                if type_prefix == 'port':
+                    impedance_Zo = comp.get('impedance_Zo', '50')
+                    logger.info(f"Extracted impedance_Zo from component level: {impedance_Zo}")
             if isinstance(value, dict):
                 logger.error(f"Value is still a dict for component {id_}: {value}")
                 value = str(value)
@@ -543,7 +557,7 @@ def parameter():
                 'AC Source', 'DC Source', 'Inductor', 'Resistor', 'Wire', 'Capacitor',
                 'Diode', 'Npn Transistor', 'Pnp Transistor', 'P Mosfet', 'N Mosfet',
                 'VCVS', 'VCCS', 'CCVS', 'CCCS', 'Current Source', 'Transmission line',
-                'Open Stub', 'Short Stub', 'Generic'
+                'Open Stub', 'Short Stub', 'port', 'Generic'
             ]:
                 if type_prefix == 'DC Source':
                     line = f"{id_} {node2} {node1} {value}\n"
@@ -558,17 +572,37 @@ def parameter():
                 elif type_prefix == 'CCCS':
                     line = f"{id_} {node1} {node2} {depVoltage} {value}\n"
                 elif type_prefix == 'Transmission line':
-                    line = f"{id_} {node1} {node2} {electrical_length} {impedance}\n"
+                    line = f"{id_} {node1} {node2} {impedance} {electrical_length} {freqency_prop} {freqency_prop_unit}\n"
                 elif type_prefix == 'Open Stub':
-                    line = f"OS{id_[-1]} {node1} {node2} {electrical_length} {impedance}\n"
+                    line = f"OS{id_[-1]} {node1} {0} {impedance} {electrical_length} {freqency_prop} {freqency_prop_unit}\n"
                 elif type_prefix == 'Short Stub':
-                    line = f"SS{id_[-1]} {node1} {node2} {electrical_length} {impedance}\n"
+                    line = f"SS{id_[-1]} {node1} {0} {impedance} {electrical_length} {freqency_prop} {freqency_prop_unit}\n"
+                elif type_prefix == 'port':
+                    # Port format: Port<n> <node> <ground> <impedance>
+                    # Ensure impedance_Zo has a value, default to 50 if empty
+                    if not impedance_Zo or impedance_Zo == '':
+                        impedance_Zo = '50'
+                    line = f"Port{id_[-1]} {node1} {0} {impedance_Zo}\n"    
+                    grnd = f"Ground {0} {1} {1}\n"
+                    logger.info(f"Generated port line: {line.strip()}, impedance_Zo: {impedance_Zo}")
                 else:
                     line = f"{id_} {node1} {node2} {value}\n"
-
-                cctt += line
+                component_lines.append(line)    
                 logger.info(f"Added to netlist: {line.strip()}")
-
+        
+        # Build the complete netlist after processing all components
+        cctt = ''.join(component_lines)
+        
+        # Add frequency line
+        freq = f'f {startfrequency} {endfrequency} {freq_num} {freqency_prop_unit} \n'
+        cctt += freq
+        logger.info(f"Added frequency to netlist: {freq.strip()}")
+        
+        # Add ground line if it exists
+        if grnd:
+            cctt += grnd
+            logger.info(f"Added ground to netlist: {grnd.strip()}")
+        
         # Save netlist file
         try:
             with open('netlist.txt', 'w') as file:
@@ -610,7 +644,10 @@ def parameter():
             logger.info(f"End Frequency: {endfrequency}")
 
             calculator = run_s_parameter()
-            S_params = calculator(startfrequency, endfrequency, p1n1, p1n2, p2n1, p2n2)
+            # Read the netlist file and pass the content to the calculator
+            with open('netlist.txt', 'r') as f:
+                netlist_content = f.read()
+            S_params = calculator(netlist_content)
 
             if S_params is None:
                 logger.error("❌ run_s_parameter returned None!")
@@ -620,16 +657,16 @@ def parameter():
                     'error': 'No S-parameters returned'
                 }), 500
 
-            # Check if S_params is empty
-            if S_params.size == 0:
-                logger.error("❌ S-parameter array is empty!")
-                return jsonify({
-                    'success': False,
-                    'message': 'S-parameter calculation failed',
-                    'error': 'Empty S-parameters array'
-                }), 500
+            # # Check if S_params is empty
+            # if S_params.size == 0:
+            #     logger.error("❌ S-parameter array is empty!")
+            #     return jsonify({
+            #         'success': False,
+            #         'message': 'S-parameter calculation failed',
+            #         'error': 'Empty S-parameters array'
+            #     }), 500
 
-            logger.info(f"✅ S_params received: shape={S_params.shape}, dtype={S_params.dtype}")
+            # logger.info(f"✅ S_params received: shape={S_params.shape}, dtype={S_params.dtype}")
             try:
                 
                 import skrf as rf
@@ -691,7 +728,7 @@ def parameter():
                 frequencies = np.linspace(startfrequency, endfrequency, len(S_params)).tolist()
 
             # Debug logging
-            logger.info(f"S-parameters shape: {S_params.shape}")
+            # logger.info(f"S-parameters shape: {S_params.shape}")
             logger.info(f"Serialized data length: {len(s_params_serializable)}")
             logger.info(f"Frequencies length: {len(frequencies)}")
             if s_params_serializable:
@@ -705,7 +742,7 @@ def parameter():
                 'message': 'S-parameters calculated successfully',
                 'sparameters': s_params_serializable,  # NO UNDERSCORE
                 'frequencies': frequencies,
-                'shape': list(S_params.shape),
+                # 'shape': list(S_params.shape),
                 'parametertype': 's'  # LOWERCASE 't'
             })
 
