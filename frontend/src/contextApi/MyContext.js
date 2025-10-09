@@ -11,7 +11,7 @@ export const ContextProvider = ({ children }) => {
   const [updatedNodes, setUpdatedNodes] = useState(new Map())
   const [simData, setSimData] = useState("");
   const [analysisType, setAnalysisType] = useState("dc"); // New state for analysis type
-  const[parameterType,setparameterType]=useState("")
+  const[parameterType,setparameterType]=useState("s")
   const [frequency, setFrequency] = useState();
   const [startfrequency,setstartfrequency]=useState();
   const [endfrequency,setendfrequency]=useState();
@@ -29,7 +29,7 @@ export const ContextProvider = ({ children }) => {
   useEffect(()=>{
     const handleUpdateNodes = ()=>{
       const newMap = new Map()
-      let i = 0;
+      let i = 1;
       for(const [key] of selectedNodes)
       {
         newMap.set(key, i);
@@ -385,22 +385,24 @@ const sendSimulationData = async () => {
         parameterType: parameterType,
         frequency: parseFloat(frequency) || 0,
         p1n1: p1n1 ? parseInt(p1n1) : null,
-        p1n2: parameterType === "s" ? (p1n2 ? parseInt(p1n2) : 0) : (p1n2 ? parseInt(p1n2) : null),
+        p1n2: p1n2 ? parseInt(p1n2) :null,
         p2n1: p2n1 ? parseInt(p2n1) : null,
-        p2n2: parameterType === "s" ? (p2n2 ? parseInt(p2n2) : 0) : (p2n2 ? parseInt(p2n2) : null),
-        impedance:impedance||50,
-        electrical_length:electrical_length||90,
+        p2n2: p2n2 ? parseInt(p2n2) : null,
+        impedance:impedance ?? 50,
+        electrical_length:electrical_length ?? 90,
         startingfrequency: parseFloat(startfrequency) || 0.1,
-        endfrequency:parseFloat(endfrequency)|| 1,
-        frequency_prop:parseFloat(frequency_prop)||1,
-        frequency_prop_unit:frequency_prop_unit||"GHz",
-        impedance_Zo:impedance_Zo||50,
-        frequency_num:parseInt(frequency_num)||501
+        endfrequency:parseFloat(endfrequency) || 1,
+        frequency_prop:parseFloat(frequency_prop) || 1,
+        frequency_prop_unit:frequency_prop_unit ?? "GHz",
+        impedance_Zo:impedance_Zo ?? 50,
+        frequency_num:parseInt(frequency_num) || 501
       };
-      // if(!p1n1 || !p2n1 || (parameterType !== "s" && (!p1n2 || !p2n2))){
-      //   toast.error("please select port nodes")
-      //   return;
-      // }
+      if(parameterType!=='s'){
+        if(!p1n1 || !p2n1 || !p1n2 || !p2n2){
+          toast.error("please select port nodes")
+          return;
+        }
+      }
       console.log('Sending parameter data:', body);
       console.log('Starting fetch request...');
       const response = await fetch('https://circuit-simulator.onrender.com/parameter', {

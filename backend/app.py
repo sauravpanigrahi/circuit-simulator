@@ -498,8 +498,8 @@ def parameter():
         # Parse frequencies
         try:
             frequency = float(ckt_data.get("frequency", 50))
-            startfrequency = ckt_data.get("startingfrequency", 0.1)
-            endfrequency = ckt_data.get("endfrequency", 1)
+            startfrequency = float(ckt_data.get("startingfrequency", 0.1))
+            endfrequency = float(ckt_data.get("endfrequency", 1))
             freq_num=ckt_data.get("frequency_num", 501)
             logger.info(f"Start frequency: {startfrequency}")
             logger.info(f"End frequency: {endfrequency}")
@@ -532,7 +532,7 @@ def parameter():
                 depnode4 = raw_value.get('dependentNode2', '')
                 depVoltage = raw_value.get('Vcontrol', '')
                 phase = raw_value.get('phase', '')
-                impedance = raw_value.get('impedance', '50')
+                impedance = raw_value.get('impedance', 50)
                 electrical_length = raw_value.get('electrical_length', '90')
                 impedance_Zo = raw_value.get('impedance_Zo', '50')
                 logger.info(f"Extracted from dict - impedance_Zo: {impedance_Zo}")
@@ -543,7 +543,7 @@ def parameter():
                 depnode4 = comp.get('dependentnode2', '')
                 depVoltage = comp.get('Vcontrol', '')
                 phase = comp.get('phase', '0')
-                impedance = comp.get('impedance', '50')
+                impedance = comp.get('impedance', 50)
                 electrical_length = comp.get('electrical_length', '90')
                 # For ports, also try to get impedance_Zo from component level
                 if type_prefix == 'port':
@@ -580,7 +580,7 @@ def parameter():
                 elif type_prefix == 'port':
                     # Port format: Port<n> <node> <ground> <impedance>
                     # Ensure impedance_Zo has a value, default to 50 if empty
-                    if not impedance_Zo or impedance_Zo == '':
+                    if impedance_Zo is None or impedance_Zo == '':
                         impedance_Zo = '50'
                     line = f"Port{id_[-1]} {node1} {0} {impedance_Zo}\n"    
                     grnd = f"Ground {0} {1} {1}\n"
