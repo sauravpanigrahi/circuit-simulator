@@ -6,9 +6,10 @@ import { useState, useEffect } from "react";
 import "./CircuitCanvas.css";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
+import {MainNavbar,Navbar} from "../elements/navbar";
+import { useDarkMode } from "../elements/darkMode";
 const CircuitCanvas = () => {
-  const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { isDarkMode } = useDarkMode();
   const {
     connectedDots,
     setConnectedDots,
@@ -78,23 +79,7 @@ const CircuitCanvas = () => {
   const gap = 40;
   const [netlist, setNetlist] = useState("");
   const [nextNodeNumber, setNextNodeNumber] = useState(0);
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-  const use = () => {
-    navigate('/use');
-  };
-  useEffect(() => {
-    if (isDarkMode) {
-      document.body.classList.add('dark-theme');
-      document.body.classList.remove('light-theme');
-    } else {
-      document.body.classList.add('light-theme');
-      document.body.classList.remove('dark-theme');
-    }
-  }, [isDarkMode]);
-
-  // Re-render port components when their values change
+ 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     lines.forEach(lineId => {
@@ -103,14 +88,12 @@ const CircuitCanvas = () => {
         const [dotId1, dotId2] = lineId.split('_').slice(1);
         const dot1 = svg.select(`#dot-${dotId1}`);
         const dot2 = svg.select(`#dot-${dotId2}`);
-        
         if (!dot1.empty() && !dot2.empty()) {
           const x1 = +dot1.attr("cx");
           const y1 = +dot1.attr("cy");
           const x2 = +dot2.attr("cx");
           const y2 = +dot2.attr("cy");
           const componentValue = valMap.get(lineId);
-          
           // Re-render the port component with updated value
           svg.selectAll(`#${lineId}`).remove();
           components.port.component(
@@ -142,58 +125,6 @@ const CircuitCanvas = () => {
       setShowParameterResults(true);
     }
   }, [parametervalue]);
-  // const formatComplexNumber = (complexNum, precision = 3) => {
-  //   if (complexNum == null) return '0';
-
-  //   if (typeof complexNum === 'number') {
-  //     if (!isFinite(complexNum)) return complexNum.toString();
-  //     return complexNum.toFixed(precision);
-  //   }
-
-  //   if (typeof complexNum === 'object') {
-  //     const real = parseFloat(complexNum.real || complexNum.re || 0);
-  //     const imag = parseFloat(complexNum.imag || complexNum.im || complexNum.i || 0);
-      
-  //     if (!isFinite(real) || !isFinite(imag)) return 'Invalid';
-      
-  //     const threshold = Math.pow(10, -(precision + 2));
-      
-  //     if (Math.abs(imag) < threshold) {
-  //       return real.toFixed(precision);
-  //     }
-      
-  //     if (Math.abs(real) < threshold) {
-  //       if (Math.abs(imag - 1) < threshold) return 'j';
-  //       if (Math.abs(imag + 1) < threshold) return '-j';
-  //       return `${imag.toFixed(precision)}j`;
-  //     }
-      
-  //     const realStr = real.toFixed(precision);
-  //     const imagStr = Math.abs(imag).toFixed(precision);
-      
-  //     let imagPart;
-  //     if (Math.abs(imag - 1) < threshold) {
-  //       imagPart = 'j';
-  //     } else if (Math.abs(imag + 1) < threshold) {
-  //       imagPart = '-j';
-  //     } else {
-  //       imagPart = `${imagStr}j`;
-  //     }
-      
-  //     const sign = imag >= 0 ? '+' : '-';
-  //     return imag >= 0 ? `${realStr}+${imagPart}` : `${realStr}-${imagPart}`;
-  //   }
-
-  //   if (typeof complexNum === 'string') {
-  //     const num = parseFloat(complexNum);
-  //     if (!isNaN(num)) {
-  //       return num.toFixed(precision);
-  //     }
-  //     return complexNum;
-  //   }
-
-  //   return complexNum.toString();
-  // };
   const formatImpedance = (complexNum, options = {}) => {
     const {
       precision = 1,
@@ -1016,24 +947,7 @@ const CircuitCanvas = () => {
   };
   return (
     <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`}>
-      <div className="circuit-navbar">
-        <span className="navbar-brand logo-pulse logo-text fw-bold fs-3">CircuitSim</span>
-        <div className="navbar-controls d-flex align-items-center gap-3">
-          <button 
-            className="btn btn-outline-primary btn-sm rounded-pill"
-            onClick={toggleDarkMode}
-            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {isDarkMode ? "☀️" : "🌙"}
-          </button>
-          <button className="back-btn" onClick={() => navigate("/")}>
-            ⬅ Back to Home
-          </button>
-          <button className="btn back-btn btn-primary px-4 py-2 rounded fw-semibold" onClick={use}>
-            How to use
-          </button>
-        </div>
-      </div>
+      <Navbar/>
       <div className="circuit-layout">
         <aside className="circuit-sidebar">
           <div className="sidebar-section">
@@ -1147,32 +1061,6 @@ const CircuitCanvas = () => {
                      onChange={(e) => setfrequency_num(e.target.value)}
                      className=" border rounded-md"
                    />
-                   {/* <div className="port-inputs">
-                     <input
-                       type="text"
-                       placeholder="p1n1"
-                       value={p1n1}
-                       onChange={(e) => setp1n1(e.target.value)}
-                     />
-                     <input
-                       type="text"
-                       placeholder="p1n2"
-                       value={p1n2}
-                       onChange={(e) => setp1n2(e.target.value)}
-                     />
-                     <input
-                       type="text"
-                       placeholder="p2n1"
-                       value={p2n1}
-                       onChange={(e) => setp2n1(e.target.value)}
-                     />
-                     <input
-                       type="text"
-                       placeholder="p2n2"
-                       value={p2n2}
-                       onChange={(e) => setp2n2(e.target.value)}
-                     />
-                   </div> */}
                    <button onClick={sendparameterData} className="evaluate-button">
                      Evaluate Parameters
                    </button>
@@ -1189,7 +1077,6 @@ const CircuitCanvas = () => {
                      onChange={(e) => setFrequency(e.target.value)}
                      className="input-full"
                    />
-   
                    <div className="port-inputs">
                      <input
                        type="text"
@@ -1236,12 +1123,8 @@ const CircuitCanvas = () => {
               View Results
             </button>
              </>
-             
             }
-            
           </div>
-          
-         
         </aside>
         <main className="circuit-canvas-area">
           {showParameterResults && parametervalue && (

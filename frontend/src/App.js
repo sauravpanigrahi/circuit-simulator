@@ -1,30 +1,56 @@
-// import './App.css';
-import CircuitCanvas from './components/CircuitCanvas';
+import { Suspense, lazy } from 'react';
 import { ContextProvider } from './contextApi/MyContext';
+import { DarkModeProvider } from './elements/darkMode';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import Blog from './pages/blog';
-import Form from './pages/form'
-import Use from './pages/use'
 import { ToastContainer } from 'react-toastify';
+import Loader from './elements/loader';
+import ScrollToTop from './elements/ScrollToTop';
+import './elements/darkMode.css';
+// Lazy imports
+const CircuitCanvas = lazy(() => import('./components/CircuitCanvas'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const Blog = lazy(() => import('./pages/blog'));
+const Form = lazy(() => import('./pages/form'));
+const Use = lazy(() => import('./pages/use'));
+const SignIn = lazy(() => import('./pages/SignIn'));
+const SignUp = lazy(() => import('./pages/SignUp'));
 
-
-function App() {
+export default function App() {
   return (
-    <ContextProvider>
-      <Router>
-      <ToastContainer />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/simulator" element={<CircuitCanvas />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/form" element={<Form />} />
-          <Route path="/use" element={<Use />} />
+    <DarkModeProvider>
+      <ContextProvider>
+        <Router>
+          <ScrollToTop />
+          <Suspense fallback={
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minHeight: '100vh',
+              width: '100vw',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              backgroundColor: '#1a1a2e',
+              zIndex: 9999
+            }}>
+              <Loader/>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/form" element={<Form />} />
+              <Route path="/use" element={<Use />} />
+              <Route path="/circuit" element={<CircuitCanvas />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+            </Routes>
+          </Suspense>
+        </Router>
 
-        </Routes>
-      </Router>
-    </ContextProvider>
+        <ToastContainer />
+      </ContextProvider>
+    </DarkModeProvider>
   );
 }
-
-export default App;

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './homepage.css';
-
+import { MainNavbar,Navbar } from '../elements/navbar';
+import { useDarkMode } from '../elements/darkMode';
 const HomePage = () => {
   const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
-  const [headerScrolled, setHeaderScrolled] = useState(false);
+  const { isDarkMode } = useDarkMode();
   const [animatedStats, setAnimatedStats] = useState({
     components: 0,
     analysisTypes: 0,
@@ -15,35 +15,6 @@ const HomePage = () => {
   const statsRef = useRef(null);
   const [statsAnimated, setStatsAnimated] = useState(false);
   const [revealedElements, setRevealedElements] = useState(new Set());
-
-  // Dark mode toggle function
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-  const handleBlogClick = () => {
-    navigate('/blog');
-  }
-
-  // Apply theme to body
-  useEffect(() => {
-    if (isDarkMode) {
-      document.body.classList.add('dark-theme');
-      document.body.classList.remove('light-theme');
-    } else {
-      document.body.classList.add('light-theme');
-      document.body.classList.remove('dark-theme');
-    }
-  }, [isDarkMode]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setHeaderScrolled(window.scrollY > 100);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -68,6 +39,7 @@ const HomePage = () => {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
             setRevealedElements(prev => new Set(prev).add(entry.target.id));
           }
         });
@@ -78,7 +50,19 @@ const HomePage = () => {
     const elements = document.querySelectorAll('.scroll-reveal');
     elements.forEach(el => observer.observe(el));
 
-    return () => observer.disconnect();
+    // Fallback: reveal all elements after 2 seconds if they haven't been revealed
+    const fallbackTimer = setTimeout(() => {
+      elements.forEach(el => {
+        if (!el.classList.contains('revealed')) {
+          el.classList.add('revealed');
+        }
+      });
+    }, 2000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const animateStats = () => {
@@ -112,7 +96,7 @@ const HomePage = () => {
   };
 
   const handleSimulatorClick = () => {
-    navigate('/simulator');
+    navigate('/circuit');
   };
 
   return (
@@ -122,7 +106,6 @@ const HomePage = () => {
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" 
         rel="stylesheet" 
       />
-            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
 
       
       {/* Animated Sine Wave Background */}
@@ -146,94 +129,10 @@ const HomePage = () => {
       </div>
 
       {/* Header */}
-      <nav
-        className={`navbar navbar-expand-lg fixed-top navbar-dark ${
-          headerScrolled ? 'navbar-scrolled' : 'navbar-transparent'
-        }`}
-      >
-        <div className="container">
-          <a
-            className="navbar-brand logo-pulse fw-bold fs-3 d-flex align-items-center"
-            href="#"
-            onClick={(e) => e.preventDefault()}
-          >
-            <span className="logo-icon me-2"><i className="fas fa-microchip me-2"></i></span>
-            <span className="logo-text">CircuitSim</span>
-          </a>
-          
-          <button 
-            className="navbar-toggler border-0" 
-            type="button" 
-            data-bs-toggle="collapse" 
-            data-bs-target="#navbarNav"
-          >
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav ms-auto align-items-center">
-              <li className="nav-item">
-                <a 
-                  className="nav-link nav-link-custom" 
-                  href="#features" 
-                  onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}
-                >
-                  Features
-                </a>
-              </li>
-              <li className="nav-item">
-                <a 
-                  className="nav-link nav-link-custom" 
-                  href="#documentation" 
-                  onClick={handleBlogClick}
-                >
-                  Blog
-                </a>
-              </li>
-              <li className="nav-item">
-                <a 
-                  className="nav-link nav-link-custom" 
-                  href="#about" 
-                  onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
-                >
-                  About
-                </a>
-              </li>
-              {/* <li className="nav-item">
-                <a 
-                  className="nav-link nav-link-custom" 
-                  href="#contact" 
-                  onClick={(e) => { e.preventDefault(); scrollToSection('contact'); }}
-                >
-                  Contact
-                </a>
-              </li> */}
-              <li className="nav-item ms-2">
-                <button
-                  type="button"
-                  className="btn btn-outline-light btn-sm rounded-pill"
-                  onClick={toggleDarkMode}
-                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                >
-                  {isDarkMode ? "☀️" : "🌙"}
-                </button>
-              </li>
-              <li className="nav-item ms-2">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-glow shimmer rounded-pill px-4"
-                  onClick={handleSimulatorClick}
-                >
-                  Launch Simulator
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
+      <MainNavbar/>
 
       {/* Hero Section */}
-      <section className="hero-section d-flex align-items-center position-relative min-vh-100">
+      <section className="d-flex align-items-center position-relative min-vh-100 bg-gradient" style={{ background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)' }}>
         <div className="floating-elements">
           <div className="floating-element">⚡</div>
           <div className="floating-element">🔌</div>
@@ -254,56 +153,137 @@ const HomePage = () => {
             </p>
             <div className="d-flex gap-3 justify-content-center flex-wrap">
               <button 
-                className="btn btn-primary btn-glow shimmer btn-lg rounded-pill px-4"
+                className="btn btn-primary btn-lg rounded-pill px-4 shadow"
                 onClick={handleSimulatorClick}
+                style={{ transition: 'all 0.3s ease' }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
               >
                 🚀 Start Designing
               </button>
-              <button 
-                className="btn btn-outline-light shimmer btn-lg rounded-pill px-4"
+              {/* <button 
+                className="btn btn-outline-light btn-lg rounded-pill px-4 shadow color-black"
                 onClick={() => scrollToSection('features')}
+                style={{ transition: 'all 0.3s ease' }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
               >
                 📖 Learn More
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="stats-section py-5" ref={statsRef}>
+      <section className="py-5" ref={statsRef} style={{ background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%)' }}>
         <div className="container">
-          <div className="d-flex flex-wrap justify-content-center text-center">
-            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-1" style={{ minWidth: '200px', maxWidth: '220px' }}>
-              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.components}+</h2>
-              <p className="lead text-light opacity-75">Electronic Components</p>
+          <div className="row g-4 justify-content-center text-center">
+            <div className="col-lg-2 col-md-4 col-sm-6">
+              <div className="card border-0 shadow-lg scroll-reveal h-100" id="stat-1" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.borderColor = 'var(--primary-color)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
+                <div className="card-body p-4">
+                  <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.components}+</h2>
+                  <p className="lead text-light opacity-75 mb-0">Electronic Components</p>
+                </div>
+              </div>
             </div>
 
-            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-2" style={{ minWidth: '200px', maxWidth: '220px' }}>
-              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.analysisTypes}</h2>
-              <p className="lead text-light opacity-75">Analysis Types</p>
+            <div className="col-lg-2 col-md-4 col-sm-6">
+              <div className="card border-0 shadow-lg scroll-reveal h-100" id="stat-2" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.borderColor = 'var(--primary-color)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
+                <div className="card-body p-4">
+                  <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.analysisTypes}</h2>
+                  <p className="lead text-light opacity-75 mb-0">Analysis Types</p>
+                </div>
+              </div>
             </div>
 
-            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-3" style={{ minWidth: '200px', maxWidth: '220px' }}>
-              <h2 className="display-4 text-primary fw-bold mb-2">∞</h2>
-              <p className="lead text-light opacity-75">Circuit Possibilities</p>
+            <div className="col-lg-2 col-md-4 col-sm-6">
+              <div className="card border-0 shadow-lg scroll-reveal h-100" id="stat-3" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.borderColor = 'var(--primary-color)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
+                <div className="card-body p-4">
+                  <h2 className="display-4 text-primary fw-bold mb-2">∞</h2>
+                  <p className="lead text-light opacity-75 mb-0">Circuit Possibilities</p>
+                </div>
+              </div>
             </div>
 
-            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-4" style={{ minWidth: '200px', maxWidth: '220px' }}>
-              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.browserBased}%</h2>
-              <p className="lead text-light opacity-75">Browser-Based</p>
+            <div className="col-lg-2 col-md-4 col-sm-6">
+              <div className="card border-0 shadow-lg scroll-reveal h-100" id="stat-4" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.borderColor = 'var(--primary-color)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
+                <div className="card-body p-4">
+                  <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.browserBased}%</h2>
+                  <p className="lead text-light opacity-75 mb-0">Browser-Based</p>
+                </div>
+              </div>
             </div>
 
-            <div className="stat-card scroll-reveal m-3 flex-fill" id="stat-5" style={{ minWidth: '200px', maxWidth: '220px' }}>
-              <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.parameterType}</h2>
-              <p className="lead text-light opacity-75">Parameter Types</p>
+            <div className="col-lg-2 col-md-4 col-sm-6">
+              <div className="card border-0 shadow-lg scroll-reveal h-100" id="stat-5" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.borderColor = 'var(--primary-color)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
+                <div className="card-body p-4">
+                  <h2 className="display-4 text-primary fw-bold mb-2">{animatedStats.parameterType}</h2>
+                  <p className="lead text-light opacity-75 mb-0">Parameter Types</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="features-section py-5" id="features">
+      <section className="py-5" id="features" style={{ background: 'var(--bg-primary)' }}>
         <div className="container">
           <div className="text-center mb-5">
             <h2 className="display-4 fw-bold text-light mb-4 scroll-reveal" id="features-title">
@@ -348,9 +328,20 @@ const HomePage = () => {
               }
             ].map((feature, index) => (
               <div key={index} className="col-lg-4 col-md-6">
-                <div className={`feature-card h-100 border-0 rounded-4 scroll-reveal`} id={`feature-${index}`}>
+                <div className="card h-100 border-0 shadow-lg scroll-reveal" id={`feature-${index}`} style={{ 
+                  background: 'var(--bg-card)', 
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-10px)';
+                  e.currentTarget.style.borderColor = 'var(--primary-color)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}>
                   <div className="card-body text-center p-4">
-                    <div className="feature-icon mb-3">{feature.icon}</div>
+                    <div className="mb-3" style={{ fontSize: '3rem', transition: 'all 0.3s ease' }}>{feature.icon}</div>
                     <h4 className="card-title fw-bold mb-3 text-light">{feature.title}</h4>
                     <p className="card-text text-light opacity-75">{feature.description}</p>
                   </div>
@@ -362,11 +353,11 @@ const HomePage = () => {
       </section>
 
       {/* About Section */}
-      <section className="about-section py-5" id="about">
+      <section className="py-5" id="about" style={{ background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)' }}>
         <div className="container">
           <div className="row align-items-center">
             <div className="col-lg-6 mb-4">
-              <div className="about-content scroll-reveal" id="about-content">
+              <div className="scroll-reveal" id="about-content">
                 <h2 className="display-5 fw-bold text-light mb-4">
                   Built for Engineers and Students
                 </h2>
@@ -375,29 +366,229 @@ const HomePage = () => {
                   Whether you're a student learning electronics or a professional engineer, our intuitive 
                   interface makes circuit simulation accessible to everyone.
                 </p>
-                <div className="d-flex gap-3">
+                <div className="d-flex gap-3 flex-wrap">
                   <button 
-                    className="btn btn-primary btn-glow shimmer rounded-pill px-4"
+                    className="btn btn-primary rounded-pill px-4 shadow"
                     onClick={handleSimulatorClick}
+                    style={{ transition: 'all 0.3s ease' }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                   >
                     Try It Now
                   </button>
-                  <button 
-                    className="btn btn-outline-light shimmer rounded-pill px-4"
-                    onClick={() => scrollToSection('contact')}
+                  {/* <button 
+                    className="btn btn-outline-light rounded-pill px-4 shadow"
+                    onClick={() => scrollToSection('use-cases')}
+                    style={{ transition: 'all 0.3s ease' }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                   >
                     Learn More
+                  </button> */}
+                </div>
+              </div>
+            </div>
+            <div className="col-lg-6">
+              <div className="scroll-reveal" id="about-visual">
+                <div className="card border-0 shadow-lg" style={{ background: 'var(--bg-card)', padding: '2rem' }}>
+                  <div className="d-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <div key={i} className="circuit-node"></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Use Cases Section */}
+      <section className="py-5" id="use-cases" style={{ background: 'var(--bg-primary)' }}>
+        <div className="container">
+          <div className="text-center mb-5">
+            <h2 className="display-4 fw-bold text-light mb-4 scroll-reveal">
+              Perfect for Every Use Case
+            </h2>
+            <p className="lead text-light opacity-75 scroll-reveal">
+              From education to professional development, CircuitSim adapts to your needs
+            </p>
+          </div>
+          
+          <div className="row g-4">
+            <div className="col-lg-4 col-md-6">
+              <div className="card border-0 shadow-lg h-100 scroll-reveal" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div className="card-body p-4">
+                  <div className="mb-3" style={{ fontSize: '2.5rem' }}>🎓</div>
+                  <h4 className="card-title fw-bold text-light mb-3">Education</h4>
+                  <p className="card-text text-light opacity-75">
+                    Perfect for students learning electronics fundamentals. Visualize circuit behavior 
+                    and understand how components interact in real-time.
+                  </p>
+                  <ul className="list-unstyled text-light opacity-75 mt-3">
+                    <li className="mb-2">✓ Circuit theory courses</li>
+                    <li className="mb-2">✓ Lab assignments</li>
+                    <li className="mb-2">✓ Interactive learning</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-4 col-md-6">
+              <div className="card border-0 shadow-lg h-100 scroll-reveal" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div className="card-body p-4">
+                  <div className="mb-3" style={{ fontSize: '2.5rem' }}>🔬</div>
+                  <h4 className="card-title fw-bold text-light mb-3">Research & Development</h4>
+                  <p className="card-text text-light opacity-75">
+                    Prototype and test circuit designs before physical implementation. Validate concepts 
+                    quickly with accurate SPICE simulations.
+                  </p>
+                  <ul className="list-unstyled text-light opacity-75 mt-3">
+                    <li className="mb-2">✓ Rapid prototyping</li>
+                    <li className="mb-2">✓ Design validation</li>
+                    <li className="mb-2">✓ Parameter optimization</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-4 col-md-6">
+              <div className="card border-0 shadow-lg h-100 scroll-reveal" style={{ 
+                background: 'var(--bg-card)', 
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div className="card-body p-4">
+                  <div className="mb-3" style={{ fontSize: '2.5rem' }}>💼</div>
+                  <h4 className="card-title fw-bold text-light mb-3">Professional Engineering</h4>
+                  <p className="card-text text-light opacity-75">
+                    Industry-standard SPICE analysis for professional circuit design. Export netlists 
+                    and simulation data for integration with existing workflows.
+                  </p>
+                  <ul className="list-unstyled text-light opacity-75 mt-3">
+                    <li className="mb-2">✓ SPICE compatibility</li>
+                    <li className="mb-2">✓ Netlist export</li>
+                    <li className="mb-2">✓ Professional tools</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Getting Started Section */}
+      <section className="py-5" style={{ background: 'linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%)' }}>
+        <div className="container">
+          <div className="row align-items-center">
+            <div className="col-lg-6 mb-4 mb-lg-0">
+              <div className="scroll-reveal">
+                <h2 className="display-5 fw-bold text-light mb-4">
+                  Get Started in Minutes
+                </h2>
+                <div className="list-group list-group-flush">
+                  <div className="list-group-item border-0 bg-transparent text-light mb-3" style={{ paddingLeft: 0 }}>
+                    <div className="d-flex align-items-start">
+                      <span className="badge bg-primary rounded-circle me-3 mt-1" style={{ width: '2rem', height: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
+                      <div>
+                        <h5 className="mb-1">Create Your Account</h5>
+                        <p className="mb-0 opacity-75">Sign up for free and access all features instantly</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="list-group-item border-0 bg-transparent text-light mb-3" style={{ paddingLeft: 0 }}>
+                    <div className="d-flex align-items-start">
+                      <span className="badge bg-primary rounded-circle me-3 mt-1" style={{ width: '2rem', height: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
+                      <div>
+                        <h5 className="mb-1">Design Your Circuit</h5>
+                        <p className="mb-0 opacity-75">Drag and drop components onto the canvas</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="list-group-item border-0 bg-transparent text-light mb-3" style={{ paddingLeft: 0 }}>
+                    <div className="d-flex align-items-start">
+                      <span className="badge bg-primary rounded-circle me-3 mt-1" style={{ width: '2rem', height: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
+                      <div>
+                        <h5 className="mb-1">Run Simulation</h5>
+                        <p className="mb-0 opacity-75">Choose analysis type and visualize results</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="list-group-item border-0 bg-transparent text-light" style={{ paddingLeft: 0 }}>
+                    <div className="d-flex align-items-start">
+                      <span className="badge bg-primary rounded-circle me-3 mt-1" style={{ width: '2rem', height: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</span>
+                      <div>
+                        <h5 className="mb-1">Export & Share</h5>
+                        <p className="mb-0 opacity-75">Save your designs and export netlists</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <button 
+                    className="btn btn-primary btn-lg rounded-pill px-4 shadow"
+                    onClick={handleSimulatorClick}
+                    style={{ transition: 'all 0.3s ease' }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                  >
+                    Start Your First Circuit →
                   </button>
                 </div>
               </div>
             </div>
             <div className="col-lg-6">
-              <div className="about-visual scroll-reveal" id="about-visual">
-                <div className="circuit-preview">
-                  <div className="circuit-grid">
-                    {Array.from({ length: 20 }).map((_, i) => (
-                      <div key={i} className="circuit-node"></div>
-                    ))}
+              <div className="card border-0 shadow-lg scroll-reveal" style={{ background: 'var(--bg-card)' }}>
+                <div className="card-body p-4">
+                  <h5 className="card-title fw-bold text-light mb-3">Quick Tips</h5>
+                  <div className="accordion" id="tipsAccordion">
+                    <div className="accordion-item border-0 mb-2" style={{ background: 'var(--bg-tertiary)' }}>
+                      <h2 className="accordion-header">
+                        <button className="accordion-button collapsed text-light" type="button" data-bs-toggle="collapse" data-bs-target="#tip1" style={{ background: 'var(--bg-tertiary)' }}>
+                          Keyboard Shortcuts
+                        </button>
+                      </h2>
+                      <div id="tip1" className="accordion-collapse collapse" data-bs-parent="#tipsAccordion">
+                        <div className="accordion-body text-light opacity-75">
+                          Use <kbd>Ctrl+Z</kbd> to undo, <kbd>Ctrl+Y</kbd> to redo, and <kbd>Delete</kbd> to remove selected components.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="accordion-item border-0 mb-2" style={{ background: 'var(--bg-tertiary)' }}>
+                      <h2 className="accordion-header">
+                        <button className="accordion-button collapsed text-light" type="button" data-bs-toggle="collapse" data-bs-target="#tip2" style={{ background: 'var(--bg-tertiary)' }}>
+                          Component Connections
+                        </button>
+                      </h2>
+                      <div id="tip2" className="accordion-collapse collapse" data-bs-parent="#tipsAccordion">
+                        <div className="accordion-body text-light opacity-75">
+                          Click on component terminals to connect them. The connection will be highlighted when valid.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="accordion-item border-0" style={{ background: 'var(--bg-tertiary)' }}>
+                      <h2 className="accordion-header">
+                        <button className="accordion-button collapsed text-light" type="button" data-bs-toggle="collapse" data-bs-target="#tip3" style={{ background: 'var(--bg-tertiary)' }}>
+                          Simulation Settings
+                        </button>
+                      </h2>
+                      <div id="tip3" className="accordion-collapse collapse" data-bs-parent="#tipsAccordion">
+                        <div className="accordion-body text-light opacity-75">
+                          Adjust simulation parameters in the settings panel. DC analysis is instant, while AC and Transient may take longer for complex circuits.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -462,8 +653,33 @@ const HomePage = () => {
       </section> */}
 
       {/* Footer */}
-      <footer className="footer-section text-center py-4">
+      <footer className="text-center py-4" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)' }}>
         <div className="container">
+          <div className="row mb-3">
+            <div className="col-md-4 mb-3 mb-md-0">
+              <h5 className="text-light mb-3">CircuitSim</h5>
+              <p className="text-light opacity-75 small">
+                Professional circuit simulation made simple. Build, analyze, and visualize electronic circuits in your browser.
+              </p>
+            </div>
+            <div className="col-md-4 mb-3 mb-md-0">
+              <h5 className="text-light mb-3">Quick Links</h5>
+              <ul className="list-unstyled">
+                <li><a href="#features" className="text-light opacity-75 text-decoration-none" onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}>Features</a></li>
+                <li><a href="#about" className="text-light opacity-75 text-decoration-none" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>About</a></li>
+                <li><a href="#use-cases" className="text-light opacity-75 text-decoration-none" onClick={(e) => { e.preventDefault(); scrollToSection('use-cases'); }}>Use Cases</a></li>
+              </ul>
+            </div>
+            <div className="col-md-4">
+              <h5 className="text-light mb-3">Resources</h5>
+              <ul className="list-unstyled">
+                <li><a href="/circuit" className="text-light opacity-75 text-decoration-none">Simulator</a></li>
+                <li><a href="/blog" className="text-light opacity-75 text-decoration-none">Blog</a></li>
+                <li><a href="https://github.com/sauravpanigrahi/circuit-simulator" className="text-light opacity-75 text-decoration-none" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+              </ul>
+            </div>
+          </div>
+          <hr className="my-3" style={{ borderColor: 'var(--border-color)' }} />
           <p className="mb-0 text-light opacity-75">
             &copy; 2025 CircuitSim. Built for engineers, students, and circuit enthusiasts.
           </p>

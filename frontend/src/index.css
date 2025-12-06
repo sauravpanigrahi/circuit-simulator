@@ -1,5 +1,9 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100&display=swap');
+
+/* Smooth scrolling for all pages */
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   margin: 0;
@@ -11,6 +15,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-decoration: none;
   box-sizing: border-box;
+  background-color: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1e293b);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 code {

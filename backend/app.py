@@ -1,10 +1,10 @@
 import traceback
-from flask import Flask, request, jsonify, url_for, send_from_directory
+from flask import Flask, request, jsonify,send_from_directory
 from databse.db import connect_to_mongo,blogs_collection  
 import json  # Import the json module
 import numpy as np  # For numerical operations
 from flask_cors import CORS
-from fastapi import FastAPI, HTTPException
+from fastapi import  HTTPException
 from pydantic import BaseModel
 import logging
 from lcapy import Circuit, j, omega, s, t, sin
@@ -24,15 +24,12 @@ load_dotenv()
 if os.getenv("NODE_ENV") != "production":
     from dotenv import load_dotenv
     load_dotenv()
-
-app = FastAPI()
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 app = Flask(__name__, static_folder='static')
 
 
@@ -44,7 +41,7 @@ CORS(app, resources={
             "https://circuit-simulator-51410.web.app",
                   # production
         ],
-        "methods": ["GET", "POST", "OPTIONS"],
+        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Accept"],
         "supports_credentials": True,
         "expose_headers": ["Content-Type", "Authorization"],
@@ -358,18 +355,23 @@ def simulation():
 @app.route('/get-images/<analysis_type>')
 def get_images(analysis_type):
     try:
+        # Ensure top-level static exists
         if not os.path.exists('static'):
             os.makedirs('static')
             logger.info("Created static directory")
 
-        # Updated image configurations with time domain plots
+        # Candidate directories to search (top-level static first, then simulation/<analysis_type>/static)
+        candidate_dirs = [
+            ('static', lambda fn: f"static/{fn}"),
+            (os.path.join('simulation', analysis_type, 'static'), lambda fn: f"simulation/{analysis_type}/static/{fn}")
+        ]
+
         image_files = {
             'ac': [
                 ("ac_analysis_voltage_phasor.png", "Voltage Phasor Diagram"),
                 ("ac_analysis_current_phasor.png", "Current Phasor Diagram"),
                 ("ac_analysis_voltage_time_domain.png", "Voltage Time Domain"),
                 ("ac_analysis_current_time_domain.png", "Current Time Domain"),
-                # ("ac_analysis_combined_time_domain.png", "Combined Time Domain")
             ],
             's': [
                 ("s_parameters_individual.png", "S-Parameters (Individual Subplots)"),
@@ -386,22 +388,26 @@ def get_images(analysis_type):
             logger.warning(f"No image configuration found for analysis type: {analysis_type}")
             return jsonify({"error": f"No images found for analysis type: {analysis_type}"}), 404
 
-        # Check if files exist
         existing_files = []
         for filename, description in image_files:
-            file_path = os.path.join('static', filename)
-            if os.path.exists(file_path):
-                existing_files.append({
-                    "url": f"static/{filename}",
-                    "description": description,
-                    "filename": filename
-                })
-                logger.info(f"Found image file: {filename}")
-            else:
+            found = False
+            for dir_path, url_builder in candidate_dirs:
+                file_path = os.path.join(dir_path, filename)
+                if os.path.exists(file_path):
+                    existing_files.append({
+                        "url": url_builder(filename),
+                        "description": description,
+                        "filename": filename,
+                        "location": dir_path
+                    })
+                    logger.info(f"Found image file: {filename} in {dir_path}")
+                    found = True
+                    break
+            if not found:
                 logger.warning(f"Image file not found: {filename}")
 
         if not existing_files:
-            logger.warning("No image files found in static directory")
+            logger.warning("No image files found in any static directories")
             return jsonify({"error": "No image files found. Please run the simulation first."}), 404
 
         return jsonify(existing_files)
@@ -410,13 +416,18 @@ def get_images(analysis_type):
         logger.error(f"Error getting images: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/static/<filename>')
-def serve_static(filename):
-    """Serve static files (images) with proper headers"""
+
+@app.route('/simulation/<analysis_type>/static/<filename>')
+def serve_simulation_static(analysis_type, filename):
+    """Serve static files from simulation/<analysis_type>/static"""
     try:
-        return send_from_directory('static', filename)
+        dir_path = os.path.join('simulation', analysis_type, 'static')
+        if not os.path.exists(dir_path):
+            logger.error(f"Simulation static directory not found: {dir_path}")
+            return jsonify({"error": f"File not found: {filename}"}), 404
+        return send_from_directory(dir_path, filename)
     except Exception as e:
-        logger.error(f"Error serving static file {filename}: {str(e)}")
+        logger.error(f"Error serving simulation static file {filename} from {analysis_type}: {str(e)}")
         return jsonify({"error": f"File not found: {filename}"}), 404
     
 @app.route('/parameter', methods=['GET', 'POST', 'OPTIONS'])
@@ -479,7 +490,6 @@ def parameter():
         except (ValueError, TypeError):
             p2n1 = "2"
             logger.warning("Invalid p2n1 value, defaulting to 2")
-
         try:
             p2n2 = str(ckt_data.get("p2n2", "0"))
         except (ValueError, TypeError):
@@ -494,7 +504,6 @@ def parameter():
             logger.warning("Invalid frequency prop values, using defaults")
 
         logger.info(f"Parsed ports → p1n1: {p1n1}, p1n2: {p1n2}, p2n1: {p2n1}, p2n2: {p2n2}")
-
         # Parse frequencies
         try:
             frequency = float(ckt_data.get("frequency", 50))
@@ -508,7 +517,6 @@ def parameter():
             startfrequency = 0.1
             endfrequency = 1
             logger.warning("Invalid frequency values, using defaults")
-
         # Build netlist text
         for comp in components:
             type_prefix = comp.get('type', '')
@@ -523,7 +531,6 @@ def parameter():
             electrical_length = ''
             impedance_Zo=''
             raw_value = comp.get('value', '')
-
             logger.info(f"Processing component {id_}: type={type_prefix}, raw_value={raw_value}")
 
             if isinstance(raw_value, dict):
@@ -778,9 +785,42 @@ def blog_posts():
             "post": data
         }), 201
     elif request.method == 'GET':
-        # ✅ Fetch all blogs from MongoDB
-        posts = list(blogs_collection.find({}, {"_id": 0}))  # exclude _id
+        # ✅ Fetch all blogs from MongoDB with _id for deletion
+        posts = list(blogs_collection.find({}))
+        # Convert ObjectId to string for JSON serialization
+        for post in posts:
+            post["_id"] = str(post["_id"])
         return jsonify(posts), 200
+
+@app.route('/blog/<post_id>', methods=['DELETE'])
+def delete_blog(post_id):
+    try:
+        from bson import ObjectId
+        from bson.errors import InvalidId
+        # Convert string ID to ObjectId
+        try:
+            object_id = ObjectId(post_id)
+        except InvalidId:
+            return jsonify({
+                "error": "Invalid post ID format"
+            }), 400
+        
+        result = blogs_collection.delete_one({"_id": object_id})
+        
+        if result.deleted_count > 0:
+            return jsonify({
+                "message": "Post deleted successfully"
+            }), 200
+        else:
+            return jsonify({
+                "error": "Post not found"
+            }), 404
+    except Exception as e:
+        logger.error(f"Error deleting post: {str(e)}")
+        return jsonify({
+            "error": "Deletion failed",
+            "details": str(e)
+        }), 500
 
 if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")

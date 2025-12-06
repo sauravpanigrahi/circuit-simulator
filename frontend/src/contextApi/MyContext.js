@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState} from "react";
 import { toast} from "react-toastify";
+import Loader from "../elements/loader";
 const MyContext = createContext();
 export const ContextProvider = ({ children }) => {
   const [connectedDots, setConnectedDots] = useState([]);
@@ -12,6 +13,7 @@ export const ContextProvider = ({ children }) => {
   const [simData, setSimData] = useState("");
   const [analysisType, setAnalysisType] = useState("dc"); // New state for analysis type
   const[parameterType,setparameterType]=useState("s")
+  const [isLoading, setIsLoading] = useState(false);
   const [frequency, setFrequency] = useState();
   const [startfrequency,setstartfrequency]=useState();
   const [endfrequency,setendfrequency]=useState();
@@ -35,11 +37,9 @@ export const ContextProvider = ({ children }) => {
         newMap.set(key, i);
         i++;
       }
-      setUpdatedNodes(newMap);
-    }
+      setUpdatedNodes(newMap);}
     return handleUpdateNodes();
   }, [selectedNodes])
-// console.log(valMap)
 let sourceCnt = 0;
 let temp = {};
   const components = [];
@@ -65,7 +65,6 @@ let temp = {};
       electrical_length:null,
       // frequency_prop:null
     };
-
     switch (type) {
       case "AC":
         sourceCnt++;
@@ -98,8 +97,7 @@ let temp = {};
         temp[key] = `R${components.filter(comp => comp.type === 'Resistor').length + 1}`;
         break;
       case "W":
-        component.type = 'Wire';
-       
+        component.type = 'Wire'; 
         component.id = `W${components.filter(comp => comp.type === 'Wire').length + 1}`;
         temp[key] = `W${components.filter(comp => comp.type === 'Wire').length + 1}`;
         break;
@@ -253,61 +251,12 @@ let temp = {};
         component.id = key;
         component.value = value.toString(); // Ensure the value is a string
     }
-
     components.push(component);
+    console.log(valMap)
   });
-  const getCurrentValue = (lineId, simData, temp) => {
-  if (!simData || !simData.current || !temp[lineId]) {
-    return "No data";
-  }
-  const currentKey = `I_${temp[lineId]}`;
-  const currentValue = simData.current[currentKey];
-  if (currentValue === undefined || currentValue === null) {
-    return "No data";
-  }
-  // Convert to number and take absolute value if negative
-  const numericValue = parseFloat(currentValue);
-  const absoluteValue = Math.abs(numericValue);
-  // Format the current value with appropriate units
-  if (absoluteValue >= 1) {
-    return `${absoluteValue.toFixed(3)} A`;
-  } else if (absoluteValue >= 0.001) {
-    return `${(absoluteValue * 1000).toFixed(3)} mA`;
-  } else if (absoluteValue >= 0.000001) {
-    return `${(absoluteValue * 1000000).toFixed(3)} µA`;
-  } else {
-    return `${absoluteValue.toExponential(3)} A`;
-  }
-};
-// Updated display component in the right panel
-const AmmeterDisplay = ({ lineId, simData, temp, valMap }) => {
-  const firstChar = lineId.slice(0, 2); // Use first 2 characters for ammeter (AM)
-  if (firstChar === 'am') {
-    return (
-      <div style={{
-        padding: '10px',
-        margin: '5px 0',
-        backgroundColor: '#f0f8ff',
-        border: '2px solid #4682b4',
-        borderRadius: '5px'
-      }}>
-        <div style={{ fontWeight: 'bold', color: '#2c5282' }}>
-          📊 {temp[lineId] || 'Ammeter'}
-        </div>
-        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1a365d' }}>
-          Current: {getCurrentValue(lineId, simData, temp)}
-        </div>
-        <div style={{ fontSize: '12px', color: '#4a5568' }}>
-          Measuring current flow
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
 const sendSimulationData = async () => {
   try {
-    // ✅ Find ground node (node with value 0)
+    setIsLoading(true);
     let groundNode = null;
     for (const [key, value] of updatedNodes.entries()) {
       if (value === 0) {
@@ -315,9 +264,9 @@ const sendSimulationData = async () => {
         break;
       }
     }
-    // ✅ Stop simulation if no ground node found
     if (!groundNode) {
       toast.error("Please set a ground node before running the simulation.");
+      setIsLoading(false);
       return; // ❌ Exit function early
     }
     // Convert the components array into a JSON string
@@ -356,12 +305,13 @@ const sendSimulationData = async () => {
     console.error('=== COMPLETE ERROR DETAILS ===');
     console.error(error);
     toast.error(`Simulation failed: ${error.message}`);
-    // alert(`Simulation failed: ${error.message}`);
+  } finally {
+    setIsLoading(false);
   }
 };
   const sendparameterData = async () => {
     try {
-      // Find ground node (node with value 0)
+      setIsLoading(true);
       let groundNode = null;
       for (const [key, value] of updatedNodes.entries()) {
         if (value === 0) {
@@ -400,6 +350,7 @@ const sendSimulationData = async () => {
       if(parameterType!=='s'){
         if(!p1n1 || !p2n1 || !p1n2 || !p2n2){
           toast.error("please select port nodes")
+          setIsLoading(false);
           return;
         }
       }
@@ -426,48 +377,37 @@ const sendSimulationData = async () => {
       console.log("parameter",parametervalue)
       setSimData(data);
       toast.success('Parameter Evaluated successfully!')
-      // alert('Parameter Evaluated successfully!');
-      
     } catch (error) {
       console.error('=== COMPLETE ERROR DETAILS ===');
-      // console.error('Error:', error);
-      // console.error('Error name:', error.name);
-      // console.error('Error message:', error.message);
-      // console.error('Error stack:', error.stack);
-      // console.error('=============================');
-      alert(`Simulation failed: ${error.message}`);
+      console.error('Error:', error);
+      toast.error(`Simulation failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   }
-
-  useEffect(() => {
-    console.log('Context parametervalue (provider):', parametervalue);
-  }, [parametervalue]);
-
+  // useEffect(() => {
+  //   console.log('Context parametervalue (provider):', parametervalue);
+  // }, [parametervalue]);
   const viewSimulation = () => {
     // For DC analysis, show results in a popup instead of trying to fetch images
     if (analysisType === 'dc') {
       const popup = window.open('', '_blank', 'width=800,height=600');
       popup.document.write('<html><head><title>DC Analysis Results</title></head><body>');
       popup.document.write('<h2>DC Analysis Results</h2>');
-
       if (simData && simData.voltages) {
         popup.document.write('<h3>Node Voltages:</h3>');
         popup.document.write('<pre>' + JSON.stringify(simData.voltages, null, 2) + '</pre>');
       }
-
       if (simData && simData.current) {
         popup.document.write('<h3>Currents:</h3>');
         popup.document.write('<pre>' + JSON.stringify(simData.current, null, 2) + '</pre>');
       }
-
       popup.document.write('</body></html>');
       popup.document.close();
       return;
     }
-
     // For AC and Transient analysis, fetch and display images
     const apiUrl = `https://circuit-simulator.onrender.com/get-images/${analysisType}`;
-
     fetch(apiUrl)
       .then(response => {
         if (!response.ok) {
@@ -482,17 +422,14 @@ const sendSimulationData = async () => {
           // alert('Failed to load simulation images. Please check the console for details.');
           return;
         }
-
         if (!data || data.length === 0) {
           toast.error('No simulation results available. Please run the simulation first.');
           // alert('No simulation results available. Please run the simulation first.');
           return;
         }
-
         const popup = window.open('', '_blank', 'width=800,height=600');
         popup.document.write('<html><head><title>Simulation Results</title></head><body>');
         popup.document.write('<h2>Simulation Results</h2>');
-
         // Add numerical results if available
         if (simData) {
           if (simData.voltages) {
@@ -504,24 +441,20 @@ const sendSimulationData = async () => {
             popup.document.write('<pre>' + JSON.stringify(simData.current, null, 2) + '</pre>');
           }
         }
-
         // Add plots
         popup.document.write('<h3>Plots:</h3>');
         data.forEach(item => {
           popup.document.write(`<h4>${item.description}</h4>`);
           popup.document.write(`<img src="https://circuit-simulator.onrender.com/${item.url}" alt="${item.description}" style="width:100%; max-width:800px;">`);
         });
-
         popup.document.write('</body></html>');
         popup.document.close();
       })
       .catch(error => {
         console.error('Error fetching images:', error);
         toast.error('Error fetching simulation images. Please check the console for details.')
-        // alert('Error fetching simulation images. Please check the console for details.');
       });
   }
-
   const viewSParameterPlots = () => {
     if (parameterType !== 's') {
       toast.error('Switch to S-parameter to view S plots.');
@@ -555,20 +488,16 @@ const sendSimulationData = async () => {
         toast.error('Error fetching S-parameter plots.');
       });
   }
-
   const [circuit, setCircuit] = useState([
     {
       id: 0,
       component: '',
       label: '',
       value: '',
-
       st_node: '',
       end_node: ''
     }
   ])
- 
-
   return (
     <MyContext.Provider
       value={{
@@ -579,7 +508,7 @@ const sendSimulationData = async () => {
         selectedLine,
         setSelectedLine,
         selectedComponent,
-        setSelectedComponent,
+        setSelectedComponent,   
         circuit,
         setCircuit,
         selectedNodes, 
@@ -625,14 +554,29 @@ const sendSimulationData = async () => {
         frequency_num,
         setfrequency_num,
         temp,
-       
-      }}
-    >
+        isLoading,
+      }}>
+      {isLoading && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(152, 152, 179, 0.9)',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <Loader/>
+        </div>
+      )}
       {children}
     </MyContext.Provider>
   );
 };
-
 export const useMyContext = ()=>{
     return useContext(MyContext);
 }

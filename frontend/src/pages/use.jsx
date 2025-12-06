@@ -1,75 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './use.css';
-const THEME_STORAGE_KEY = 'csim_theme';
-
+import { useDarkMode } from '../elements/darkMode';
+import { Navbar } from '../elements/navbar';
 const Use = () => {
-    const [isDarkMode, setIsDarkMode] = useState(true);
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
   const navigate=useNavigate();
     const simulate = () => {
       navigate("/simulator")
     };
-    const back=()=>{
-        window.history.back()
-    }
-
-    // Initialize theme
-    useEffect(() => {
-      const prefersDark = true; // Simulated for demo
-      setIsDarkMode(prefersDark);
-    }, []);
-  
-    // Apply theme to body
-    useEffect(() => {
-      if (isDarkMode) {
-        document.body.classList.add('dark-theme');
-        document.body.classList.remove('light-theme');
-        document.body.setAttribute('data-bs-theme', 'dark');
-      } else {
-        document.body.classList.add('light-theme');
-        document.body.classList.remove('dark-theme');
-        document.body.setAttribute('data-bs-theme', 'light');
-      }
-    }, [isDarkMode]);
-  
-    const toggleDarkMode = () => setIsDarkMode((d) => !d);
+   
 
     return (
         <>
-            <link
-                href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
-                rel="stylesheet"
-            />
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
-
+           
+         
             <div className="theme-transition">
                 {/* Hero Welcome Section */}
                 <section className="hero-welcome d-flex flex-column">
-                    <nav className="navbar glass-nav">
-                        <div className="container">
-                        <span className="navbar-brand brand-logo" style={{cursor:"pointer"}}>
-                            <i className="fas fa-microchip me-2"></i>CircuitSim
-                            </span>
-
-                            <div className="d-flex align-items-center gap-3  p-3 ">
-                
-                            <button 
-                                className="btn theme-btn border rounded px-3"
-                                onClick={toggleDarkMode}
-                                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                            >
-                                {isDarkMode ? "☀️" : "🌙"}
-                            </button>
-
-                            <button className="btn glass-btn border rounded px-3" onClick={back}>
-                                <i className="fas fa-arrow-left me-2"></i>Back to Home
-                            </button>
-                            </div>
-
-
-                        </div>
-                    </nav>
+                    <Navbar/>
                     
                     <div className="container flex-grow-1 d-flex align-items-center">
                         <div className="row w-100">

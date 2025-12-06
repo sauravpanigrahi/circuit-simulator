@@ -14,9 +14,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-
 def _static_dir(path_segment: str = ""):
     """Return absolute path inside backend/static, creating the folder if needed."""
     base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')

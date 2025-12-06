@@ -1497,7 +1497,7 @@ SSTUB: {
 port: {
     id: 22,
     name: 'port',
-    component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2, value = null) => {
+    component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2, value) => {
         // Calculate midpoint
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
