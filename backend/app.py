@@ -1,6 +1,6 @@
 import traceback
 from flask import Flask, request, jsonify,send_from_directory
-from databse.db import connect_to_mongo,blogs_collection  
+from databse.db import connect_to_mongo, blogs_collection  
 import json  # Import the json module
 import numpy as np  # For numerical operations
 from flask_cors import CORS
@@ -48,7 +48,8 @@ CORS(app, resources={
         "max_age": 3600
     }
 })
-db,blogs_collection=connect_to_mongo()
+# MongoDB connection is handled in databse/db.py module level
+# If connection fails, db and blogs_collection will be None
 # Set the default port to 8000 if not specified in the environment
 port = int(os.environ.get('PORT', 8000))
 
@@ -770,6 +771,9 @@ def parameter():
 
 @app.route('/blog/form', methods=['POST', 'GET'])
 def blog_posts():
+    if blogs_collection is None:
+        return jsonify({"error": "Database connection not available"}), 503
+    
     if request.method == 'POST':
         data = request.get_json()
         if not data:
@@ -794,6 +798,9 @@ def blog_posts():
 
 @app.route('/blog/<post_id>', methods=['DELETE'])
 def delete_blog(post_id):
+    if blogs_collection is None:
+        return jsonify({"error": "Database connection not available"}), 503
+    
     try:
         from bson import ObjectId
         from bson.errors import InvalidId

@@ -19,7 +19,13 @@ def connect_to_mongo():
 
     except Exception as e:
         print("❌ Could not connect to MongoDB:", e)
-        return None
+        return None, None
 
-db, blogs_collection = connect_to_mongo()
+result = connect_to_mongo()
+if result[0] is None:
+    db = None
+    blogs_collection = None
+    print("⚠️  MongoDB connection failed. App will run without database features.")
+else:
+    db, blogs_collection = result
 
