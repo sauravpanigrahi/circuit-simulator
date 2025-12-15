@@ -8,12 +8,14 @@ from skrf import Network
 from collections import Counter
 import logging
 import os
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 def _static_dir(path_segment: str = ""):
     """Return absolute path inside backend/static, creating the folder if needed."""
     base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -105,6 +107,14 @@ class run_s_parameter:
                 return base_value * multiplier
         
         return base_value
+    
+    def create_wire_network(self, frequency_range):
+        """Create a wire network (zero resistance, ideal connection)"""
+        # Wire is effectively a 0-ohm resistor (ideal short circuit)
+        media = rf.media.DefinedGammaZ0(frequency=frequency_range, z0_port=self.z0_system, gamma=1j)
+        # Use a very small resistance (approaching zero) for numerical stability
+        wire_network = media.resistor(1e-6)  # 1 micro-ohm ≈ ideal wire
+        return wire_network
     
     def create_resistor_network(self, resistance_value, frequency_range):
         """Create a resistor network for RF analysis"""
@@ -259,7 +269,7 @@ class run_s_parameter:
                 continue
             
             parts = line.split()
-            if len(parts) < 4:
+            if len(parts) < 3:
                 logger.warning(f"Line {line_number}: Not enough information - {line}")
                 continue
             
@@ -267,8 +277,22 @@ class run_s_parameter:
             node1 = parts[1]
             node2 = parts[2]
             component_type = component_name[0].upper()
+            
             try:
-                if component_type == 'R':
+                # Handle Wire component
+                if component_type == 'W':
+                    components[component_name] = {
+                        'type': 'wire',
+                        'nodes': (node1, node2),
+                        'value': 1e-6,  # 1 micro-ohm
+                        'unit': 'Ω'
+                    }
+                    logger.info(f"Found wire {component_name}: ideal connection")
+                
+                elif component_type == 'R':
+                    if len(parts) < 4:
+                        logger.warning(f"Line {line_number}: Resistor needs value - {line}")
+                        continue
                     resistance = self.convert_value_to_number(parts[3])
                     components[component_name] = {
                         'type': 'resistor',
@@ -279,6 +303,9 @@ class run_s_parameter:
                     logger.info(f"Found resistor {component_name}: {resistance} Ω")
                 
                 elif component_type == 'C':
+                    if len(parts) < 4:
+                        logger.warning(f"Line {line_number}: Capacitor needs value - {line}")
+                        continue
                     capacitance = self.convert_value_to_number(parts[3])
                     components[component_name] = {
                         'type': 'capacitor',
@@ -289,6 +316,9 @@ class run_s_parameter:
                     logger.info(f"Found capacitor {component_name}: {capacitance} F")
                 
                 elif component_type == 'L':
+                    if len(parts) < 4:
+                        logger.warning(f"Line {line_number}: Inductor needs value - {line}")
+                        continue
                     inductance = self.convert_value_to_number(parts[3])
                     components[component_name] = {
                         'type': 'inductor',
@@ -299,6 +329,9 @@ class run_s_parameter:
                     logger.info(f"Found inductor {component_name}: {inductance} H")
                 
                 elif component_name.startswith('TL'):
+                    if len(parts) < 4:
+                        logger.warning(f"Line {line_number}: Transmission line needs parameters - {line}")
+                        continue
                     electrical_length = self.convert_value_to_number(parts[3])
                     impedance = self.convert_value_to_number(parts[4]) if len(parts) > 4 else 50.0
                     components[component_name] = {
@@ -311,6 +344,9 @@ class run_s_parameter:
                     logger.info(f"Found transmission line {component_name}: {electrical_length}°, {impedance}Ω")
                 
                 elif component_name.startswith('OS'):
+                    if len(parts) < 4:
+                        logger.warning(f"Line {line_number}: Open stub needs parameters - {line}")
+                        continue
                     electrical_length = self.convert_value_to_number(parts[3])
                     impedance = self.convert_value_to_number(parts[4]) if len(parts) > 4 else 50.0
                     components[component_name] = {
@@ -323,6 +359,9 @@ class run_s_parameter:
                     logger.info(f"Found open stub {component_name}: {electrical_length}°, {impedance}Ω")
                 
                 elif component_name.startswith('SS'):
+                    if len(parts) < 4:
+                        logger.warning(f"Line {line_number}: Short stub needs parameters - {line}")
+                        continue
                     electrical_length = self.convert_value_to_number(parts[3])
                     impedance = self.convert_value_to_number(parts[4]) if len(parts) > 4 else 50.0
                     components[component_name] = {
@@ -350,7 +389,10 @@ class run_s_parameter:
             component_type = component['type']
             
             try:
-                if component_type == 'resistor':
+                if component_type == 'wire':
+                    network = self.create_wire_network(frequency_range)
+                    networks[name] = network
+                elif component_type == 'resistor':
                     network = self.create_resistor_network(component['value'], frequency_range)
                     networks[name] = network
                 elif component_type == 'capacitor':
@@ -514,22 +556,6 @@ class run_s_parameter:
             traceback.print_exc()
             return None
     
-    def validate_ports(self, p1n1, p1n2, p2n1, p2n2):
-        """Validate that port nodes exist in the circuit"""
-        all_nodes = set()
-        for component in self.circuit_components.values():
-            nodes = component['nodes']
-            all_nodes.update(nodes)
-        all_nodes.add('0')
-        all_nodes.update(self.implicit_ground_nodes)
-        port_nodes = [p1n1, p1n2, p2n1, p2n2]
-        missing_nodes = [node for node in port_nodes if node not in all_nodes]
-        if missing_nodes:
-            logger.error(f"Port nodes not found in circuit: {missing_nodes}")
-            logger.info(f"Available nodes: {sorted(all_nodes)}")
-            return False
-        return True
-    
     def print_component_summary(self):
         """Print a nice summary of all components found"""
         print("\n=== Circuit Components Summary ===")
@@ -544,6 +570,9 @@ class run_s_parameter:
                 print(f"  Nodes: {node1_display} to {node2_display}")
                 print(f"  Electrical Length: {component['electrical_length']}°")
                 print(f"  Impedance: {component['impedance']} Ω")
+            elif comp_type == 'wire':
+                print(f"{name}: {comp_type} (ideal connection)")
+                print(f"  Nodes: {node1_display} to {node2_display}")
             else:
                 value = component['value']
                 unit = component['unit']
@@ -552,7 +581,7 @@ class run_s_parameter:
                 print(f"  Value: {value} {unit}")
             print()
     
-    def __call__(self,netlist):
+    def __call__(self, netlist):
         """Main interface function to calculate S-parameters"""
         elements = {}
         nodes = {}
@@ -584,12 +613,15 @@ class run_s_parameter:
                 continue  # Skip frequency line in second pass
             else:
                 if len(tokens) == 3:
-                    # Handle ports and ground with 3 tokens
+                    # Handle ports, ground, and wires with 3 tokens
                     name, n1, n2 = tokens[:3]
                     if name.startswith('Port'):
                         value = 50.0  # Default port impedance
                     elif name.startswith('Ground'):
                         value = 1.0   # Default ground value
+                    elif name.startswith('W') or name.startswith('w'):
+                        # Wire component with 3 tokens (no value needed)
+                        value = 1e-6  # 1 micro-ohm for ideal wire
                     else:
                         # Skip lines that don't have enough information
                         continue
@@ -608,7 +640,10 @@ class run_s_parameter:
                     continue
 
                 prefix = name[0].upper()
-                if prefix == 'C':
+                if prefix == 'W':
+                    # Wire component - use 1 micro-ohm resistor
+                    net = media.resistor(1e-6, name=name)
+                elif prefix == 'C':
                     net = media.capacitor(value, name=name)
                 elif prefix == 'L':
                     net = media.inductor(value, name=name)
@@ -670,9 +705,11 @@ class run_s_parameter:
         else:
             logger.error("Network object does not have S-parameters")
             return None
+
 def plot_s_parameters(frequency_range, s_parameters, save_dir='static'):
     """
-    Plot S-parameters (magnitude and phase) vs frequency
+    Enhanced S-parameter plotting that automatically detects number of ports
+    and plots all relevant S-parameters including S31, S32 for 3-port networks
     
     Parameters:
     -----------
@@ -684,103 +721,122 @@ def plot_s_parameters(frequency_range, s_parameters, save_dir='static'):
         Directory to save plots
     """
     import os
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
     os.makedirs(save_dir, exist_ok=True)
     
-    # Debug: Check S-parameter shape
     logger.info(f"S-parameters shape: {s_parameters.shape}")
     logger.info(f"Frequency range: {frequency_range}")
     
     freq_ghz = frequency_range.f / 1e9  # Convert Hz to GHz
     
-    # Check if we have a 2-port network
+    # Check if we have valid S-parameter array
     if len(s_parameters.shape) != 3:
         logger.error(f"Expected 3D S-parameter array, got shape: {s_parameters.shape}")
         return None
     
     nfreqs, nports1, nports2 = s_parameters.shape
-    logger.info(f"S-parameter dimensions: {nfreqs} frequencies, {nports1}x{nports2} ports")
+    nports = min(nports1, nports2)
+    logger.info(f"S-parameter dimensions: {nfreqs} frequencies, {nports}-port network")
     
-    # Create figure with 2 subplots (magnitude and phase)
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    
-    # Plot Magnitude in dB - handle different port configurations
-    if nports1 >= 2 and nports2 >= 2:
-        s11_db = 20 * np.log10(np.abs(s_parameters[:, 0, 0]))
-        s21_db = 20 * np.log10(np.abs(s_parameters[:, 1, 0]))
-        s12_db = 20 * np.log10(np.abs(s_parameters[:, 0, 1]))
-        s22_db = 20 * np.log10(np.abs(s_parameters[:, 1, 1]))
+    # Determine subplot layout based on number of ports
+    if nports == 2:
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+        axes = [ax1, ax2]
+    elif nports >= 3:
+        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
     else:
-        logger.error(f"Not enough ports for 2x2 S-parameter matrix. Got {nports1}x{nports2}")
+        logger.error(f"Need at least 2 ports, got {nports}")
         return None
     
-    ax1.plot(freq_ghz, s11_db, 'b-', label='S11', linewidth=2)
-    ax1.plot(freq_ghz, s21_db, 'r-', label='S21', linewidth=2)
-    ax1.plot(freq_ghz, s12_db, 'g--', label='S12', linewidth=2)
-    ax1.plot(freq_ghz, s22_db, 'm--', label='S22', linewidth=2)
+    # ===== MAGNITUDE PLOT =====
+    ax_mag = axes[0]
     
-    ax1.set_xlabel('Frequency (GHz)', fontsize=12)
-    ax1.set_ylabel('Magnitude (dB)', fontsize=12)
-    ax1.set_title('S-Parameters Magnitude vs Frequency', fontsize=14, fontweight='bold')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend(loc='best', fontsize=10)
+    # Define colors and line styles for better visualization
+    colors = ['b', 'r', 'g', 'm', 'c', 'y', 'k', 'orange', 'purple']
+    line_styles = ['-', '-', '-', '-', '-', '-', ':', ':', '-']
     
-    # Plot Phase in degrees
+    # Plot only S11, S21, S31, S32
+    # S11 - Input reflection coefficient
+    s11_db = 20 * np.log10(np.abs(s_parameters[:, 0, 0]))
+    ax_mag.plot(freq_ghz, s11_db, 'b-', label='S11', linewidth=2)
+    
+    # S21 - Forward transmission (Port 1 to Port 2)
+    if nports >= 2:
+        s21_db = 20 * np.log10(np.abs(s_parameters[:, 1, 0]))
+        ax_mag.plot(freq_ghz, s21_db, 'r-', label='S21', linewidth=2)
+    
+    # S31 - Forward transmission (Port 1 to Port 3)
+    if nports >= 3:
+        s31_db = 20 * np.log10(np.abs(s_parameters[:, 2, 0]))
+        ax_mag.plot(freq_ghz, s31_db, 'g-', label='S31', linewidth=2)
+        
+        # S32 - Transmission from Port 2 to Port 3
+        s32_db = 20 * np.log10(np.abs(s_parameters[:, 2, 1]))
+        ax_mag.plot(freq_ghz, s32_db, 'm-', label='S32', linewidth=2)
+    
+    ax_mag.set_xlabel('Frequency (GHz)', fontsize=12)
+    ax_mag.set_ylabel('Magnitude (dB)', fontsize=12)
+    ax_mag.set_title('S-Parameters Magnitude vs Frequency (S11, S21, S31, S32)', 
+                     fontsize=14, fontweight='bold')
+    ax_mag.grid(True, alpha=0.3)
+    ax_mag.legend(loc='best', fontsize=10)
+    
+    # ===== PHASE PLOT =====
+    ax_phase = axes[1]
+    
+    # Plot only S11, S21, S31, S32 phases
+    # S11 phase
     s11_phase = np.angle(s_parameters[:, 0, 0], deg=True)
-    s21_phase = np.angle(s_parameters[:, 1, 0], deg=True)
-    s12_phase = np.angle(s_parameters[:, 0, 1], deg=True)
-    s22_phase = np.angle(s_parameters[:, 1, 1], deg=True)
+    ax_phase.plot(freq_ghz, s11_phase, 'b-', label='S11', linewidth=2)
     
-    ax2.plot(freq_ghz, s11_phase, 'b-', label='S11', linewidth=2)
-    ax2.plot(freq_ghz, s21_phase, 'r-', label='S21', linewidth=2)
-    ax2.plot(freq_ghz, s12_phase, 'g--', label='S12', linewidth=2)
-    ax2.plot(freq_ghz, s22_phase, 'm--', label='S22', linewidth=2)
+    # S21 phase
+    if nports >= 2:
+        s21_phase = np.angle(s_parameters[:, 1, 0], deg=True)
+        ax_phase.plot(freq_ghz, s21_phase, 'r-', label='S21', linewidth=2)
     
-    ax2.set_xlabel('Frequency (GHz)', fontsize=12)
-    ax2.set_ylabel('Phase (degrees)', fontsize=12)
-    ax2.set_title('S-Parameters Phase vs Frequency', fontsize=14, fontweight='bold')
-    ax2.grid(True, alpha=0.3)
-    ax2.legend(loc='best', fontsize=10)
+    # S31 phase
+    if nports >= 3:
+        s31_phase = np.angle(s_parameters[:, 2, 0], deg=True)
+        ax_phase.plot(freq_ghz, s31_phase, 'g--', label='S31', linewidth=2)
+        
+        # S32 phase
+        s32_phase = np.angle(s_parameters[:, 2, 1], deg=True)
+        ax_phase.plot(freq_ghz, s32_phase, 'm--', label='S32', linewidth=2)
+    
+    ax_phase.set_xlabel('Frequency (GHz)', fontsize=12)
+    ax_phase.set_ylabel('Phase (degrees)', fontsize=12)
+    ax_phase.set_title('S-Parameters Phase vs Frequency (S11, S21, S31, S32)', 
+                      fontsize=14, fontweight='bold')
+    ax_phase.grid(True, alpha=0.3)
+    ax_phase.legend(loc='best', fontsize=10)
     
     plt.tight_layout()
     
     # Save the plot
     save_path = os.path.join(save_dir, 's_parameters_combined.png')
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    logger.info(f"S-parameter plot saved to: {save_path}")
+    logger.info(f"S-parameter plot (S11,S21,S31,S32) saved to: {save_path}")
     plt.close()
     
     return save_path
 
-# spar=run_s_parameter()
+# Example usage with wire component:
+# spar = run_s_parameter()
 # netlist = """
 # f 0.1 2 501 GHz
-# C1 1 0 3.22 pF
-# C2 1 2 82.25 fF
-# L2 1 2 8.893 nH
-# C3 2 0 3.22 pF
+# W1 1 2
+# C1 2 0 3.22 pF
+# C2 2 3 82.25 fF
+# L2 2 3 8.893 nH
+# W2 3 4
+# C3 4 0 3.22 pF
 # Port1 1 0 50
-# Port2 2 0 50
+# Port2 4 0 50
 # Ground 0 1 1
 # """
-# # netlist="""
-# # f 0.1 2 501 GHz
-# # TL1 1 2 57.74 60 1 GHz
-# # OS1 1 0 57.74 30 1 GHz
-# # OS2 2 0 57.74 30 1 GHz
-# # Port1 1 0 50
-# # Port2 2 0 50
-# # Ground 0 1 1
-# # """
-# # netlist="""
-# # f 0.1 2 501 GHz
-# # L 1 2 7.96 nH
-# # C1 1 0 3.18 pF
-# # C2 2 0 3.18 pF
-# # Port1 1 0 50
-# # Port2 2 0 50
-# # Ground 0 1 1
-# # """
-# spar.__call__(netlist)
-# s_parameter=spar.network.s
-# freq=spar.network.frequency
+# spar(netlist)
+# s_parameter = spar.network.s
+# freq = spar.network.frequency
 # plot_s_parameters(freq, s_parameter)

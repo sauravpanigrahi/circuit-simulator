@@ -4,9 +4,9 @@ import { components } from "../assets/componentsLibrary";
 import { useMyContext } from "../contextApi/MyContext";
 import { useState, useEffect } from "react";
 import "./CircuitCanvas.css";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
-import {MainNavbar,Navbar} from "../elements/navbar";
+import {Navbar} from "../elements/navbar";
 import { useDarkMode } from "../elements/darkMode";
 const CircuitCanvas = () => {
   const { isDarkMode } = useDarkMode();
@@ -19,7 +19,7 @@ const CircuitCanvas = () => {
     setSelectedLine,
     selectedComponent,
     setSelectedComponent,
-    selectedNodes,
+    // selectedNodes,
     setSelectedNodes,
     updatedNodes,
     setUpdatedNodes,
@@ -31,7 +31,7 @@ const CircuitCanvas = () => {
     parameterType,
     setparameterType,
     parametervalue,
-    setparametervalue,
+    // setparametervalue,
     frequency,
     setFrequency,
     startfrequency,
@@ -49,17 +49,17 @@ const CircuitCanvas = () => {
     simData,
     valMap,
     setValMap,
-    impedance,
-    electrical_length,
-    setelectrical_length,
+    // impedance,
+    // electrical_length,
+    // setelectrical_length,
     temp,
     viewSParameterPlots,
     frequency_prop,
     setfrequency_prop,
     frequency_prop_unit,
     setfrequency_prop_unit,
-    impedance_Zo,
-    setimpedance_Zo,
+    // impedance_Zo,
+    // setimpedance_Zo,
     frequency_num,
     setfrequency_num,
   } = useMyContext();

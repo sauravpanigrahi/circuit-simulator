@@ -1563,7 +1563,7 @@ port: {
         // Add impedance value label
         rotatedGroup.append("text")
             .attr("x", 0)
-            .attr("y", circleRadius + 28)
+            .attr("y", circleRadius+28)
             .attr("text-anchor", "middle")
             .attr("font-family", "Arial, sans-serif")
             .attr("font-size", "8px")

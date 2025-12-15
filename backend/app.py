@@ -593,6 +593,8 @@ def parameter():
                     line = f"Port{id_[-1]} {node1} {0} {impedance_Zo}\n"    
                     grnd = f"Ground {0} {1} {1}\n"
                     logger.info(f"Generated port line: {line.strip()}, impedance_Zo: {impedance_Zo}")
+                elif type_prefix == 'Wire':
+                    line = f"{id_} {node1} {node2}\n"
                 else:
                     line = f"{id_} {node1} {node2} {value}\n"
                 component_lines.append(line)    

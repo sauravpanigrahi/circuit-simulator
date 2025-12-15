@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './use.css';
 import { useDarkMode } from '../elements/darkMode';
 import { Navbar } from '../elements/navbar';
 const Use = () => {
-  const { isDarkMode, toggleDarkMode } = useDarkMode();
+//   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const navigate=useNavigate();
     const simulate = () => {
       navigate("/simulator")
