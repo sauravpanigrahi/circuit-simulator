@@ -81,7 +81,7 @@ const SignUp = () => {
     
     // Simulate API call (frontend only)
     try{
-        const response = await axios.post('http://localhost:8000/auth/signup', {
+        const response = await axios.post('https://circuit-simulator.onrender.com/auth/signup', {
           name: formData.name,
           email: formData.email,
           password: formData.password,

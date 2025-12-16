@@ -66,7 +66,7 @@ const SignIn = () => {
     }
     setIsLoading(true);
     try{
-      const response = await axios.post('http://localhost:8000/auth/signin', {
+      const response = await axios.post('https://circuit-simulator.onrender.com/auth/signin', {
         email: formData.email,
         password: formData.password
       });
