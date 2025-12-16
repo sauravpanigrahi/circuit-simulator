@@ -1498,20 +1498,120 @@ port: {
     id: 22,
     name: 'port',
     component: (svg, lineId, setSelectedLine, handleLineDoubleClick, showLineCurrent, hideLineCurrent, x1, x2, y1, y2, value) => {
-        // Calculate midpoint
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
+        // Parse lineId to get node IDs: format is "port_dotId1_dotId2"
+        const lineIdParts = lineId.split("_");
+        const mainNodeId = lineIdParts[1]; // The clicked node (first node)
+        const portNodeId = lineIdParts[2]; // The port's second node
         
-        // Calculate the angle
-        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        // Get coordinates of the main node
+        const mainNode = svg.select(`#dot-${mainNodeId}`);
+        const mainNodeX = mainNode.empty() ? x1 : +mainNode.attr("cx");
+        const mainNodeY = mainNode.empty() ? y1 : +mainNode.attr("cy");
         
-        // Calculate the total line length
-        const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-        const halfLength = lineLength / 2;
+        // Find all connections to the main node by querying SVG for all line groups
+        const occupiedDirections = {
+            plusX: false,  // Right (+X)
+            minusX: false, // Left (-X)
+            plusY: false,  // Down (+Y)
+            minusY: false  // Up (-Y)
+        };
         
-        // Port symbol dimensions
+        // Query all groups in the SVG (these are the line components)
+        svg.selectAll("g").each(function() {
+            const groupId = this.getAttribute("id");
+            if (!groupId || groupId === lineId) return; // Skip current port and groups without IDs
+            
+            // Parse line ID format: "component_dotId1_dotId2" or "component_dotId1_dotId2_dotId3"
+            const parts = groupId.split("_");
+            if (parts.length < 3) return;
+            
+            // Check if this line connects to the main node
+            const node1 = parts[1];
+            const node2 = parts[2];
+            const node3 = parts[3]; // For 3-terminal components
+            
+            if (node1 === mainNodeId || node2 === mainNodeId || node3 === mainNodeId) {
+                // Get coordinates of connected nodes
+                let otherNodeId = null;
+                if (node1 === mainNodeId) {
+                    otherNodeId = node2 || node3;
+                } else if (node2 === mainNodeId) {
+                    otherNodeId = node1;
+                } else if (node3 === mainNodeId) {
+                    otherNodeId = node1; // For 3-terminal, prefer node1 over node2
+                }
+                
+                if (!otherNodeId || otherNodeId === mainNodeId) return; // Skip self-connections
+                
+                // Skip the port's own connection (to portNodeId)
+                if (otherNodeId === portNodeId) return;
+                
+                const otherNode = svg.select(`#dot-${otherNodeId}`);
+                if (otherNode.empty()) return;
+                
+                const otherX = +otherNode.attr("cx");
+                const otherY = +otherNode.attr("cy");
+                
+                // Calculate direction vector from main node to connected node
+                const dirX = otherX - mainNodeX;
+                const dirY = otherY - mainNodeY;
+                
+                // Determine which direction is occupied (with tolerance for grid alignment)
+                const tolerance = 5; // pixels tolerance for grid alignment
+                
+                if (Math.abs(dirX) > Math.abs(dirY)) {
+                    // Horizontal connection
+                    if (dirX > tolerance) {
+                        occupiedDirections.plusX = true;  // Connection to the right
+                    } else if (dirX < -tolerance) {
+                        occupiedDirections.minusX = true; // Connection to the left
+                    }
+                } else {
+                    // Vertical connection
+                    if (dirY > tolerance) {
+                        occupiedDirections.plusY = true;  // Connection downward
+                    } else if (dirY < -tolerance) {
+                        occupiedDirections.minusY = true; // Connection upward
+                    }
+                }
+            }
+        });
+        
+        // Determine the free direction and calculate rotation angle
+        // Port should face toward the free side (away from occupied connections)
+        // Priority: left (-X) > down (+Y) > up (-Y) > right (+X)
+        let angle = 180; // Default: facing left (-X)
+        
+        if (!occupiedDirections.minusX) {
+            angle = 180; // Face left (-X) - highest priority
+        } else if (!occupiedDirections.plusY) {
+            angle = 90; // Face down (+Y)
+        } else if (!occupiedDirections.minusY) {
+            angle = -90; // Face up (-Y)
+        } else if (!occupiedDirections.plusX) {
+            angle = 0; // Face right (+X)
+        } else {
+            // All directions occupied, default to left
+            angle = 180;
+        }
+        
+        // Port symbol dimensions - LOCKED CONSTANTS (DO NOT MODIFY)
         const circleRadius = 8;
-        const verticalLineLength = 15;
+        const dotRadius = 4; // Node radius
+        const strokeWidth = 2; // Locked stroke width
+        const portFontSize = "10px"; // Locked font size for PORT label
+        const impedanceFontSize = "8px"; // Locked font size for impedance
+        
+        // Calculate port position at node edge based on rotation angle
+        // Port circle center should be positioned so it's tangent to the node circle
+        // Distance from node center to port circle center = dotRadius + circleRadius
+        const angleRad = angle * Math.PI / 180;
+        const offsetX = Math.cos(angleRad) * (dotRadius + circleRadius);
+        const offsetY = Math.sin(angleRad) * (dotRadius + circleRadius);
+        
+        // Port circle center position (anchored to node edge, tangent to node)
+        const portCenterX = mainNodeX + offsetX;
+        const portCenterY = mainNodeY + offsetY;
         
         // Get impedance value
         const impedance = value && typeof value === 'object' ? value.impedance_Zo : (value || '50');
@@ -1526,49 +1626,59 @@ port: {
             .on("mouseout", () => hideLineCurrent());
         
         // Create a group for the rotated component
+        // CRITICAL: Only use translate() and rotate() - NEVER use scale()
+        // Rotation and positioning must not introduce any scaling
         const rotatedGroup = portGroup.append("g")
-            .attr("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+            .attr("transform", `translate(${portCenterX}, ${portCenterY}) rotate(${angle})`);
         
-        // Draw connecting line from start to circle
+        // Draw connecting line from node edge to port circle edge
+        // In rotated coordinates: origin is at port circle center
+        // Node edge is at distance (dotRadius + circleRadius) in negative X direction
+        // Port circle edge is at distance circleRadius in negative X direction
+        const nodeEdgeX = -(dotRadius + circleRadius);
+        const portEdgeX = -circleRadius;
+        
+        // Draw connecting line - using locked stroke width
         rotatedGroup.append("line")
-            .attr("x1", -halfLength)
+            .attr("x1", nodeEdgeX+15)
             .attr("y1", 0)
-            .attr("x2", -circleRadius)
+            .attr("x2", portEdgeX)
             .attr("y2", 0)
             .attr("stroke", "black")
-            .attr("stroke-width", 2);
-        
+            .attr("stroke-width", strokeWidth)
+            .style("stroke-width", strokeWidth); // Explicit CSS to prevent override
       
-        // Draw circle
+        // Draw circle - using locked radius and stroke width
         rotatedGroup.append("circle")
-            .attr("cx", 0)
+            .attr("cx", 12)
             .attr("cy", 0)
             .attr("r", circleRadius)
             .attr("fill", "white")
             .attr("stroke", "black")
-            .attr("stroke-width", 2);
+            .attr("stroke-width", strokeWidth)
+            .style("stroke-width", strokeWidth); // Explicit CSS to prevent override
         
-       
-        
-        // Add "PORT" label (this will rotate with the symbol)
+        // Add "PORT" label (this will rotate with the symbol) - using locked font size
         rotatedGroup.append("text")
-            .attr("x", 0)
+            .attr("x", 5)
             .attr("y", circleRadius + 15)
             .attr("text-anchor", "middle")
             .attr("font-family", "Arial, sans-serif")
-            .attr("font-size", "10px")
-            .attr("fill", "red")
+            .attr("font-size", portFontSize)
+            .style("font-size", portFontSize) // Explicit CSS to prevent override
+            .attr("fill", "black")
             .text("PORT");
         
-        // Add impedance value label
-        rotatedGroup.append("text")
-            .attr("x", 0)
-            .attr("y", circleRadius+28)
-            .attr("text-anchor", "middle")
-            .attr("font-family", "Arial, sans-serif")
-            .attr("font-size", "8px")
-            .attr("fill", "blue")
-            .text(`${impedance}Ω`);
+        // Add impedance value label - using locked font size
+        // rotatedGroup.append("text")
+        //     .attr("x", 0)
+        //     .attr("y", circleRadius+28)
+        //     .attr("text-anchor", "middle")
+        //     .attr("font-family", "Arial, sans-serif")
+        //     .attr("font-size", impedanceFontSize)
+        //     .style("font-size", impedanceFontSize) // Explicit CSS to prevent override
+        //     .attr("fill", "blue")
+        //     .text(`${impedance}Ω`);
         
         return portGroup;
     }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate,useLocation  } from "react-router-dom";
 import { Zap } from "lucide-react";
 import { useDarkMode } from "./darkMode";
+import { use } from "react";
 
 // -------------------- 
 // Main Navbar
@@ -33,19 +34,15 @@ export const MainNavbar = () => {
       const authStatus = localStorage.getItem('isAuthenticated');
       setIsAuthenticated(authStatus === 'true');
     };
-    
     checkAuth();
-    
     // Listen for storage changes (when user signs in/out in another tab)
     const handleStorageChange = () => {
       checkAuth();
     };
-    
     // Listen for custom auth event (when user signs in/out in same tab)
     const handleAuthChange = () => {
       checkAuth();
     };
-    
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authStateChanged', handleAuthChange);
     
@@ -57,15 +54,15 @@ export const MainNavbar = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
+    localStorage.removeItem('email');
+    localStorage.removeItem('name');
     setIsAuthenticated(false);
     // Dispatch custom event to update navbar
     window.dispatchEvent(new Event('authStateChanged'));
     navigate('/');
   };
 
-  const userName = localStorage.getItem('userName') || 'User';
+  const userName = localStorage.getItem('name') || 'User';
 
   // Close dropdown when clicking outside
   useEffect(() => {

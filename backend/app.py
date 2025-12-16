@@ -1,6 +1,7 @@
 import traceback
 from flask import Flask, request, jsonify,send_from_directory
 from databse.db import connect_to_mongo, blogs_collection  
+from auth.routes import auth_bp
 import json  # Import the json module
 import numpy as np  # For numerical operations
 from flask_cors import CORS
@@ -18,6 +19,8 @@ from Y_parameter import run_y_parameter
 from S_parameter import run_s_parameter
 import os
 from dotenv import load_dotenv
+from flask_jwt_extended import JWTManager
+
 # Load environment variables from .env file
 load_dotenv()
 # Only load .env if not in production
@@ -32,7 +35,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='static')
 
-
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+JWTManager(app)
 # Configure CORS properly
 CORS(app, resources={
     r"/*": {
@@ -50,6 +54,8 @@ CORS(app, resources={
 })
 # MongoDB connection is handled in databse/db.py module level
 # If connection fails, db and blogs_collection will be None
+
+app.register_blueprint(auth_bp, url_prefix='/auth')
 # Set the default port to 8000 if not specified in the environment
 port = int(os.environ.get('PORT', 8000))
 

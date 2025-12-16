@@ -48,8 +48,6 @@ def Transmission_Line(Zc,theta,f0,f,Z0,name):
     TL=rf.Network(s=s,frequency=f,name=name)
     return TL
 
-
-
 def Open_Stub(Zc,theta,f0,f,Z0,name):
     #theta in radian
     TL = Transmission_Line(Zc,theta,f0,f,Z0,name)

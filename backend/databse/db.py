@@ -10,12 +10,13 @@ def connect_to_mongo():
         mongo_uri = os.getenv("mongo_uri")
         client = MongoClient(mongo_uri)
 
-        db = client["blog_db"]
+        db = client["circuitsim"]
         blogs_collection = db["blogs"]
+        user_collection = db["users"]
         db.command("ping")
 
         print("✅ Connected to MongoDB")
-        return db, blogs_collection  
+        return db, blogs_collection, user_collection
 
     except Exception as e:
         print("❌ Could not connect to MongoDB:", e)
@@ -27,5 +28,5 @@ if result[0] is None:
     blogs_collection = None
     print("⚠️  MongoDB connection failed. App will run without database features.")
 else:
-    db, blogs_collection = result
+    db, blogs_collection, user_collection = result
 

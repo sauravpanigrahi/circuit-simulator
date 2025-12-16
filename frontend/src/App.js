@@ -14,7 +14,8 @@ const Form = lazy(() => import('./pages/form'));
 const Use = lazy(() => import('./pages/use'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const SignUp = lazy(() => import('./pages/SignUp'));
-
+const Account = lazy(() => import('./pages/account'));
+const Profile = lazy(() => import('./pages/devloper'));
 export default function App() {
   return (
     <DarkModeProvider>
@@ -45,11 +46,24 @@ export default function App() {
               <Route path="/circuit" element={<CircuitCanvas />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
+              <Route path="/account" element={<Account />} />
+              <Route path="/devloper" element={<Profile />} />
             </Routes>
           </Suspense>
         </Router>
 
-        <ToastContainer />
+        <ToastContainer
+        position="top-center"
+        draggable
+        theme="colored"
+        toastStyle={{
+          width: '500px',
+          minHeight: '60px',
+          color: '#fff',
+          backgroundColor: '#1e293b',
+          borderRadius: '12px'
+        }}
+      />
       </ContextProvider>
     </DarkModeProvider>
   );

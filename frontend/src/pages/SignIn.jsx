@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { MainNavbar } from '../elements/navbar';
+import { Navbar } from '../elements/navbar';
 import { useDarkMode } from '../elements/darkMode';
 import './homepage.css';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const SignIn = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useDarkMode();
-
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   // Scroll to top on mount and prevent layout shift
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
@@ -16,12 +23,7 @@ const SignIn = () => {
       window.history.scrollRestoration = 'manual';
     }
   }, []);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+ 
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,35 +61,39 @@ const SignIn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     setIsLoading(true);
-    
-    // Simulate API call (frontend only)
-    setTimeout(() => {
-      // Store user info in localStorage
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userEmail', formData.email);
-      localStorage.setItem('userName', formData.email.split('@')[0]);
-      
+    try{
+      const response = await axios.post('http://localhost:8000/auth/signin', {
+        email: formData.email,
+        password: formData.password
+      });
       setIsLoading(false);
-      // Dispatch custom event to update navbar
+      console.log('Signin successful:', response.data);
+      localStorage.setItem("name", response.data.user.name);
+      localStorage.setItem('userEmail', response.data.user.email);
+      localStorage.setItem('isAuthenticated', 'true');
       window.dispatchEvent(new Event('authStateChanged'));
+      toast.success('Signin successful!');
       navigate('/');
-    }, 1000);
+    }
+    catch(error){
+      console.error('Error during signin:', error);
+      toast.error('Signin failed. Please check your credentials.');
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`} style={{ paddingTop: '76px' }}>
+    <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`} >
       <link 
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" 
         rel="stylesheet" 
       />
       
-      <MainNavbar />
+      <Navbar />
       
       <div className="container" style={{ minHeight: 'calc(100vh - 76px)', paddingTop: '2rem' }}>
         <div className="row justify-content-center align-items-center">

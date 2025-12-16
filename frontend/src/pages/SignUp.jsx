@@ -1,21 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { MainNavbar } from '../elements/navbar';
+import { Navbar } from '../elements/navbar';
 import { useDarkMode } from '../elements/darkMode';
 import './homepage.css';
+import axios from 'axios';
+import {toast} from 'react-toastify';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useDarkMode();
-
-  // Scroll to top on mount and prevent layout shift
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-    // Prevent any scroll restoration
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
-    }
-  }, []);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -25,6 +18,15 @@ const SignUp = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
+  // Scroll to top on mount and prevent layout shift
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    // Prevent any scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -42,7 +44,6 @@ const SignUp = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     } else if (formData.name.trim().length < 2) {
@@ -73,35 +74,48 @@ const SignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     setIsLoading(true);
     
     // Simulate API call (frontend only)
-    setTimeout(() => {
-      // Store user info in localStorage
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userEmail', formData.email);
-      localStorage.setItem('userName', formData.name);
-      
-      setIsLoading(false);
-      // Dispatch custom event to update navbar
-      window.dispatchEvent(new Event('authStateChanged'));
-      navigate('/');
-    }, 1000);
+    try{
+        const response = await axios.post('http://localhost:8000/auth/signup', {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword
+        });
+        console.log('Signup successful:', response.data);
+        console.log(formData);
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userName', response.data.name);
+        localStorage.setItem('userEmail', response.data.email);
+        setIsLoading(false);
+        // Dispatch custom event to update navbar
+        window.dispatchEvent(new Event('authStateChanged'));
+        toast.success('Signup successful!');
+        navigate('/');
+        
+    }
+    catch(error){
+        console.error('Signup failed:', error.response ? error.response.data : error.message);
+        setIsLoading(false);
+        toast.error(error.response && error.response.data && error.response.data.message ? error.response.data.message : 'Signup failed. Please try again.');
+
+    
   };
+}
 
   return (
-    <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`} style={{ paddingTop: '76px' }}>
+    <div className={`${isDarkMode ? 'dark-theme' : 'light-theme'} page-load`}>
       <link 
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" 
         rel="stylesheet" 
       />
       
-      <MainNavbar />
+      <Navbar />
       
       <div className="container" style={{ minHeight: 'calc(100vh - 76px)', paddingTop: '2rem' }}>
         <div className="row justify-content-center align-items-center">
@@ -228,6 +242,7 @@ const SignUp = () => {
                     type="submit"
                     className="btn btn-primary w-100 py-2 mb-3"
                     disabled={isLoading}
+                    
                     style={{
                       backgroundColor: isDarkMode ? '#00d4ff' : '#0066cc',
                       borderColor: isDarkMode ? '#00d4ff' : '#0066cc',
